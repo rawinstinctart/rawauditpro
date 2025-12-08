@@ -452,6 +452,283 @@ export async function registerRoutes(server: Server, app: Express) {
     }
   });
 
+  // Draft routes for optimization proposals
+  app.get("/api/drafts", isAuthenticated, async (req, res) => {
+    try {
+      const { websiteId, auditId } = req.query;
+      
+      if (auditId) {
+        const drafts = await storage.getDrafts(auditId as string);
+        return res.json(drafts);
+      }
+      
+      if (websiteId) {
+        const drafts = await storage.getDraftsByWebsite(websiteId as string);
+        return res.json(drafts);
+      }
+      
+      return res.status(400).json({ message: "websiteId or auditId required" });
+    } catch (error) {
+      console.error("Error fetching drafts:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/drafts/pending", isAuthenticated, async (req, res) => {
+    try {
+      const { websiteId } = req.query;
+      
+      if (!websiteId) {
+        return res.status(400).json({ message: "websiteId required" });
+      }
+      
+      const drafts = await storage.getPendingDrafts(websiteId as string);
+      res.json(drafts);
+    } catch (error) {
+      console.error("Error fetching pending drafts:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/drafts/:id", isAuthenticated, async (req, res) => {
+    try {
+      const draft = await storage.getDraft(req.params.id);
+      if (!draft) {
+        return res.status(404).json({ message: "Draft not found" });
+      }
+      res.json(draft);
+    } catch (error) {
+      console.error("Error fetching draft:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/drafts/:id/approve", isAuthenticated, async (req, res) => {
+    try {
+      const draft = await storage.approveDraft(req.params.id);
+      if (!draft) {
+        return res.status(404).json({ message: "Draft not found" });
+      }
+      res.json(draft);
+    } catch (error) {
+      console.error("Error approving draft:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/drafts/:id/reject", isAuthenticated, async (req, res) => {
+    try {
+      const draft = await storage.rejectDraft(req.params.id);
+      if (!draft) {
+        return res.status(404).json({ message: "Draft not found" });
+      }
+      res.json(draft);
+    } catch (error) {
+      console.error("Error rejecting draft:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/drafts/:id/apply", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.subscriptionTier !== "pro") {
+        return res.status(403).json({ message: "Pro subscription required to apply drafts" });
+      }
+
+      const draft = await storage.getDraft(req.params.id);
+      if (!draft) {
+        return res.status(404).json({ message: "Draft not found" });
+      }
+      
+      if (draft.status !== "approved") {
+        return res.status(400).json({ message: "Draft must be approved before applying" });
+      }
+
+      const applied = await storage.applyDraft(req.params.id);
+      
+      if (draft.issueId) {
+        await storage.updateIssue(draft.issueId, {
+          status: "fixed",
+          fixedAt: new Date(),
+          chosenFixVariant: draft.selectedProposal as "safe" | "recommended" | "aggressive" | null,
+        });
+      }
+
+      res.json(applied);
+    } catch (error) {
+      console.error("Error applying draft:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.patch("/api/drafts/:id/select-mode", isAuthenticated, async (req, res) => {
+    try {
+      const { mode } = req.body;
+      if (!mode || !["safe", "balanced", "aggressive"].includes(mode)) {
+        return res.status(400).json({ message: "Invalid mode. Must be safe, balanced, or aggressive." });
+      }
+
+      const draft = await storage.getDraft(req.params.id);
+      if (!draft) {
+        return res.status(404).json({ message: "Draft not found" });
+      }
+
+      const updated = await storage.updateDraft(req.params.id, { selectedProposal: mode });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating draft mode:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/drafts/bulk-approve", isAuthenticated, async (req, res) => {
+    try {
+      const { draftIds } = req.body;
+      if (!Array.isArray(draftIds) || draftIds.length === 0) {
+        return res.status(400).json({ message: "draftIds array required" });
+      }
+
+      const approvedCount = await storage.bulkApproveDrafts(draftIds);
+      res.json({ approvedCount });
+    } catch (error) {
+      console.error("Error bulk approving drafts:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.post("/api/drafts/bulk-apply", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.subscriptionTier !== "pro") {
+        return res.status(403).json({ message: "Pro subscription required to apply drafts" });
+      }
+
+      const { draftIds } = req.body;
+      if (!Array.isArray(draftIds) || draftIds.length === 0) {
+        return res.status(400).json({ message: "draftIds array required" });
+      }
+
+      const appliedCount = await storage.bulkApplyDrafts(draftIds);
+      res.json({ appliedCount });
+    } catch (error) {
+      console.error("Error bulk applying drafts:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Audit with optimization mode
+  app.post("/api/audits/with-mode", isAuthenticated, async (req, res) => {
+    try {
+      const { websiteId, optimizationMode } = req.body;
+      
+      if (!websiteId) {
+        return res.status(400).json({ message: "Website ID is required" });
+      }
+      
+      const mode = optimizationMode || "balanced";
+      if (!["safe", "balanced", "aggressive"].includes(mode)) {
+        return res.status(400).json({ message: "Invalid optimization mode" });
+      }
+      
+      const website = await storage.getWebsite(websiteId);
+      if (!website) {
+        return res.status(404).json({ message: "Website not found" });
+      }
+      
+      const audit = await storage.createAudit({
+        websiteId,
+        status: "pending",
+        optimizationMode: mode,
+      });
+      
+      const orchestrator = new AgentOrchestrator(audit.id, websiteId, mode);
+      orchestrator.runAudit(website.url).catch(console.error);
+      
+      res.status(201).json(audit);
+    } catch (error) {
+      console.error("Error creating audit with mode:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Website optimization preferences
+  app.patch("/api/websites/:id/preferences", isAuthenticated, async (req, res) => {
+    try {
+      const { optimizationMode, autoApplyEnabled } = req.body;
+      
+      const updateData: Record<string, any> = {};
+      
+      if (optimizationMode && ["safe", "balanced", "aggressive"].includes(optimizationMode)) {
+        updateData.optimizationMode = optimizationMode;
+      }
+      
+      if (typeof autoApplyEnabled === "boolean") {
+        updateData.autoApplyEnabled = autoApplyEnabled;
+      }
+      
+      const updated = await storage.updateWebsite(req.params.id, updateData);
+      if (!updated) {
+        return res.status(404).json({ message: "Website not found" });
+      }
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating website preferences:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Audit draft stats
+  app.get("/api/audits/:id/drafts", isAuthenticated, async (req, res) => {
+    try {
+      const drafts = await storage.getDrafts(req.params.id);
+      
+      const stats = {
+        total: drafts.length,
+        pending: drafts.filter(d => d.status === "pending").length,
+        approved: drafts.filter(d => d.status === "approved").length,
+        applied: drafts.filter(d => d.status === "applied").length,
+        rejected: drafts.filter(d => d.status === "rejected").length,
+      };
+
+      res.json({ drafts, stats });
+    } catch (error) {
+      console.error("Error fetching audit drafts:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Auto-apply drafts endpoint
+  app.post("/api/audits/:id/auto-apply-drafts", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.subscriptionTier !== "pro") {
+        return res.status(403).json({ message: "Pro subscription required for auto-apply" });
+      }
+
+      const audit = await storage.getAudit(req.params.id);
+      if (!audit) {
+        return res.status(404).json({ message: "Audit not found" });
+      }
+      
+      const mode = audit.optimizationMode || "balanced";
+      const orchestrator = new AgentOrchestrator(audit.id, audit.websiteId, mode);
+      const appliedCount = await orchestrator.autoApplyDrafts();
+      
+      res.json({ appliedCount });
+    } catch (error) {
+      console.error("Error auto-applying drafts:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
   // Stripe routes
   app.get("/api/stripe/config", async (req, res) => {
     const isConfigured = !!process.env.STRIPE_PRO_PRICE_ID;
