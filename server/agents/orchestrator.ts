@@ -1,8 +1,8 @@
 import { storage } from "../storage";
 import { crawlWebsite } from "./crawler";
-import { analyzePageSEO, calculateHealthScore } from "./seoAnalyzer";
+import { analyzePageSEO, analyzeImageSEO, generateImageReport, calculateHealthScore } from "./seoAnalyzer";
 import { generateAIImprovement, generateAgentThought } from "./aiEngine";
-import type { AgentType, CrawlResult, SEOIssue } from "./types";
+import type { AgentType, CrawlResult, SEOIssue, ImageReport } from "./types";
 import type { Audit } from "@shared/schema";
 
 export class AgentOrchestrator {
@@ -103,9 +103,8 @@ export class AgentOrchestrator {
         allIssues.push(...pageIssues);
         analyzedPages++;
         
-        // Update progress during page analysis (30-50%)
         const totalPages = crawlResults.length || 1;
-        const analysisProgress = 30 + Math.floor((analyzedPages / totalPages) * 20);
+        const analysisProgress = 30 + Math.floor((analyzedPages / totalPages) * 15);
         await this.updateProgress(analysisProgress, `Seite ${analyzedPages}/${crawlResults.length} analysiert`);
 
         if (pageIssues.length > 0) {
@@ -117,6 +116,46 @@ export class AgentOrchestrator {
           );
         }
       }
+
+      // Phase 3.5: Image optimization analysis
+      await this.updateProgress(46, "Bilder werden analysiert");
+      
+      await this.log(
+        "audit",
+        "Analyzing images for optimization opportunities...",
+        "Checking image sizes, formats, dimensions, alt text, and lazy loading.",
+        "Analyze images"
+      );
+      
+      let imageReport: ImageReport | null = null;
+      for (const page of crawlResults) {
+        if (page.imagesDetailed && page.imagesDetailed.length > 0) {
+          const imageIssues = analyzeImageSEO(page.imagesDetailed, page.url);
+          allIssues.push(...imageIssues);
+          
+          if (imageIssues.length > 0) {
+            await this.log(
+              "audit",
+              `Found ${imageIssues.length} image issues on ${page.url}`,
+              `Identified ${page.imagesDetailed.filter(i => i.issues.length > 0).length} images with optimization opportunities.`,
+              "Image analysis"
+            );
+          }
+        }
+      }
+      
+      imageReport = generateImageReport(crawlResults);
+      
+      if (imageReport && imageReport.totalImages > 0) {
+        await this.log(
+          "audit",
+          `Image analysis complete: ${imageReport.totalImages} images found, ${imageReport.imagesWithIssues} need optimization`,
+          `Potential savings: ${Math.round(imageReport.totalSavedBytes / 1024)}KB (${imageReport.averageSavingsPercent}% reduction possible).`,
+          "Image report ready"
+        );
+      }
+      
+      await this.updateProgress(50, "Bildanalyse abgeschlossen");
 
       // Phase 4: Content Agent generates AI improvements
       await this.log(
