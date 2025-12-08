@@ -1,21 +1,51 @@
-import type { CrawlResult } from "./types";
+import type { CrawlResult, ImageAsset } from "./types";
+import { detectImageDetails, detectDuplicates } from "./image";
 
-export async function crawlWebsite(url: string, maxPages = 5): Promise<CrawlResult[]> {
+export interface CrawlOptions {
+  maxPages?: number;
+  analyzeImages?: boolean;
+  maxImagesPerPage?: number;
+}
+
+const defaultOptions: CrawlOptions = {
+  maxPages: 5,
+  analyzeImages: true,
+  maxImagesPerPage: 10,
+};
+
+export async function crawlWebsite(
+  url: string, 
+  options: CrawlOptions | number = 5
+): Promise<CrawlResult[]> {
+  const opts = typeof options === "number" 
+    ? { ...defaultOptions, maxPages: options }
+    : { ...defaultOptions, ...options };
   const results: CrawlResult[] = [];
   const visited = new Set<string>();
   const toVisit = [url];
+  const allImageHashes = new Map<string, string[]>();
   
-  while (toVisit.length > 0 && results.length < maxPages) {
+  while (toVisit.length > 0 && results.length < (opts.maxPages || 5)) {
     const currentUrl = toVisit.shift()!;
     
     if (visited.has(currentUrl)) continue;
     visited.add(currentUrl);
     
     try {
-      const result = await crawlPage(currentUrl);
+      const result = await crawlPage(currentUrl, opts);
+      
+      if (result.imagesDetailed) {
+        for (const img of result.imagesDetailed) {
+          if (img.hash) {
+            const urls = allImageHashes.get(img.hash) || [];
+            urls.push(img.absoluteSrc);
+            allImageHashes.set(img.hash, urls);
+          }
+        }
+      }
+      
       results.push(result);
       
-      // Extract internal links for further crawling
       if (result.links) {
         const baseUrl = new URL(url);
         for (const link of result.links) {
@@ -25,7 +55,6 @@ export async function crawlWebsite(url: string, maxPages = 5): Promise<CrawlResu
               toVisit.push(linkUrl.href);
             }
           } catch {
-            // Skip invalid URLs
           }
         }
       }
@@ -38,10 +67,18 @@ export async function crawlWebsite(url: string, maxPages = 5): Promise<CrawlResu
     }
   }
   
+  if (opts.analyzeImages) {
+    for (const result of results) {
+      if (result.imagesDetailed) {
+        result.imagesDetailed = detectDuplicates(result.imagesDetailed);
+      }
+    }
+  }
+  
   return results;
 }
 
-async function crawlPage(url: string): Promise<CrawlResult> {
+async function crawlPage(url: string, opts: CrawlOptions): Promise<CrawlResult> {
   const startTime = Date.now();
   
   try {
@@ -56,11 +93,24 @@ async function crawlPage(url: string): Promise<CrawlResult> {
     const loadTime = Date.now() - startTime;
     const html = await response.text();
     
+    const parsed = parseHTML(html, url);
+    
+    let imagesDetailed: ImageAsset[] | undefined;
+    if (opts.analyzeImages && parsed.images && parsed.images.length > 0) {
+      const imagesToAnalyze = parsed.images.slice(0, opts.maxImagesPerPage || 10);
+      imagesDetailed = await Promise.all(
+        imagesToAnalyze.map(img => 
+          detectImageDetails(img.src, img.alt, html)
+        )
+      );
+    }
+    
     return {
       url,
       statusCode: response.status,
       loadTime,
-      ...parseHTML(html, url),
+      ...parsed,
+      imagesDetailed,
     };
   } catch (error) {
     return {

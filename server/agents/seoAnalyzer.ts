@@ -1,4 +1,4 @@
-import type { CrawlResult, SEOIssue } from "./types";
+import type { CrawlResult, SEOIssue, ImageAsset, ImageReport } from "./types";
 
 export function analyzePageSEO(page: CrawlResult): SEOIssue[] {
   const issues: SEOIssue[] = [];
@@ -224,6 +224,179 @@ function generateMetaDescriptionSuggestion(page: CrawlResult): string {
   }
   
   return "Discover valuable content and insights on this page. Learn more about our offerings.";
+}
+
+export function analyzeImageSEO(images: ImageAsset[], pageUrl: string): SEOIssue[] {
+  const issues: SEOIssue[] = [];
+  
+  const oversizedFiles = images.filter(img => img.issues.includes("oversized_file"));
+  if (oversizedFiles.length > 0) {
+    const totalSize = oversizedFiles.reduce((sum, img) => sum + (img.fileSize || 0), 0);
+    issues.push({
+      type: "oversized_images",
+      category: "Performance",
+      title: `${oversizedFiles.length} Oversized Image${oversizedFiles.length > 1 ? "s" : ""}`,
+      description: `Found ${oversizedFiles.length} image(s) over 150KB. Large images slow down page loading.`,
+      severity: oversizedFiles.length > 3 ? "critical" : "high",
+      riskLevel: "low",
+      currentValue: `${Math.round(totalSize / 1024)}KB total`,
+      suggestedValue: "Compress images to under 150KB each",
+      pageUrl,
+      autoFixable: true,
+    });
+  }
+  
+  const pngCandidates = images.filter(img => img.issues.includes("png_should_be_webp"));
+  if (pngCandidates.length > 0) {
+    issues.push({
+      type: "png_to_webp",
+      category: "Performance",
+      title: `${pngCandidates.length} PNG Image${pngCandidates.length > 1 ? "s" : ""} Should Be WebP`,
+      description: "Non-transparent PNG images can be converted to WebP for 25-50% smaller file sizes.",
+      severity: "medium",
+      riskLevel: "low",
+      currentValue: `${pngCandidates.length} PNG images without transparency`,
+      suggestedValue: "Convert to WebP format",
+      pageUrl,
+      autoFixable: true,
+    });
+  }
+  
+  const oversizedDimensions = images.filter(img => img.issues.includes("oversized_dimensions"));
+  if (oversizedDimensions.length > 0) {
+    issues.push({
+      type: "oversized_dimensions",
+      category: "Performance",
+      title: `${oversizedDimensions.length} Image${oversizedDimensions.length > 1 ? "s" : ""} Too Large`,
+      description: "Images wider than 1200px are likely larger than needed for most displays.",
+      severity: "medium",
+      riskLevel: "low",
+      currentValue: `${oversizedDimensions.length} images over 1200px wide`,
+      suggestedValue: "Resize to maximum 1200px width",
+      pageUrl,
+      autoFixable: true,
+    });
+  }
+  
+  const missingAlt = images.filter(img => img.issues.includes("missing_alt"));
+  if (missingAlt.length > 0) {
+    issues.push({
+      type: "images_missing_alt",
+      category: "Accessibility",
+      title: `${missingAlt.length} Image${missingAlt.length > 1 ? "s" : ""} Missing Alt Text`,
+      description: "Images without alt text hurt accessibility and SEO. Screen readers cannot describe these images.",
+      severity: missingAlt.length > 5 ? "high" : "medium",
+      riskLevel: "low",
+      currentValue: `${missingAlt.length} images without alt text`,
+      suggestedValue: "Add descriptive alt text to each image",
+      pageUrl,
+      autoFixable: false,
+    });
+  }
+  
+  const noLazyLoading = images.filter(img => img.issues.includes("no_lazy_loading"));
+  if (noLazyLoading.length > 3) {
+    issues.push({
+      type: "missing_lazy_loading",
+      category: "Performance",
+      title: `${noLazyLoading.length} Images Without Lazy Loading`,
+      description: "Images below the fold should use lazy loading to improve initial page load time.",
+      severity: noLazyLoading.length > 8 ? "high" : "medium",
+      riskLevel: "low",
+      currentValue: `${noLazyLoading.length} images without loading='lazy'`,
+      suggestedValue: "Add loading='lazy' attribute",
+      pageUrl,
+      autoFixable: true,
+    });
+  }
+  
+  const duplicates = images.filter(img => img.issues.includes("duplicate_image"));
+  if (duplicates.length > 0) {
+    issues.push({
+      type: "duplicate_images",
+      category: "Performance",
+      title: `${duplicates.length} Duplicate Image${duplicates.length > 1 ? "s" : ""} Found`,
+      description: "The same image is loaded multiple times. Consider using a single instance.",
+      severity: "low",
+      riskLevel: "low",
+      currentValue: `${duplicates.length} duplicate images`,
+      suggestedValue: "Remove duplicate image references",
+      pageUrl,
+      autoFixable: false,
+    });
+  }
+  
+  const poorCompression = images.filter(img => img.issues.includes("poor_compression"));
+  if (poorCompression.length > 0) {
+    issues.push({
+      type: "poor_compression",
+      category: "Performance",
+      title: `${poorCompression.length} Image${poorCompression.length > 1 ? "s" : ""} Poorly Compressed`,
+      description: "These images have higher than expected bytes per pixel, suggesting poor compression.",
+      severity: "medium",
+      riskLevel: "low",
+      currentValue: `${poorCompression.length} images with poor compression`,
+      suggestedValue: "Re-compress with optimal quality settings",
+      pageUrl,
+      autoFixable: true,
+    });
+  }
+  
+  return issues;
+}
+
+export function generateImageReport(crawlResults: CrawlResult[]): ImageReport {
+  const allImages: ImageAsset[] = [];
+  
+  for (const result of crawlResults) {
+    if (result.imagesDetailed) {
+      allImages.push(...result.imagesDetailed);
+    }
+  }
+  
+  const issueBreakdown: Record<string, number> = {
+    oversized_file: 0,
+    png_should_be_webp: 0,
+    oversized_dimensions: 0,
+    missing_alt: 0,
+    duplicate_image: 0,
+    no_lazy_loading: 0,
+    poor_compression: 0,
+  };
+  
+  let imagesWithIssues = 0;
+  let totalOriginalSize = 0;
+  
+  for (const img of allImages) {
+    if (img.fileSize) {
+      totalOriginalSize += img.fileSize;
+    }
+    
+    if (img.issues.length > 0) {
+      imagesWithIssues++;
+      for (const issue of img.issues) {
+        issueBreakdown[issue] = (issueBreakdown[issue] || 0) + 1;
+      }
+    }
+  }
+  
+  const potentialSavingsPercent = imagesWithIssues > 0 
+    ? Math.min(50, (imagesWithIssues / allImages.length) * 40)
+    : 0;
+  
+  const estimatedOptimizedSize = Math.round(totalOriginalSize * (1 - potentialSavingsPercent / 100));
+  const totalSavedBytes = totalOriginalSize - estimatedOptimizedSize;
+  
+  return {
+    totalImages: allImages.length,
+    imagesWithIssues,
+    totalOriginalSize,
+    totalOptimizedSize: estimatedOptimizedSize,
+    totalSavedBytes,
+    averageSavingsPercent: Math.round(potentialSavingsPercent),
+    issueBreakdown: issueBreakdown as any,
+    optimizedImages: [],
+  };
 }
 
 export function calculateHealthScore(issues: SEOIssue[]): number {
