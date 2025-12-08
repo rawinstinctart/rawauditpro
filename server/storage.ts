@@ -22,7 +22,7 @@ import {
   type InsertAgentMemory,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { eq, desc, and, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -126,7 +126,7 @@ export class DatabaseStorage implements IStorage {
     const result = await db
       .select()
       .from(audits)
-      .where(sql`${audits.websiteId} IN ${websiteIds}`)
+      .where(inArray(audits.websiteId, websiteIds))
       .orderBy(desc(audits.createdAt));
     
     return result.map(audit => ({
@@ -152,7 +152,7 @@ export class DatabaseStorage implements IStorage {
     return db
       .select()
       .from(audits)
-      .where(sql`${audits.websiteId} IN ${websiteIds}`)
+      .where(inArray(audits.websiteId, websiteIds))
       .orderBy(desc(audits.createdAt))
       .limit(limit);
   }
@@ -191,7 +191,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(issues)
       .where(and(
-        sql`${issues.websiteId} IN ${websiteIds}`,
+        inArray(issues.websiteId, websiteIds),
         eq(issues.status, "pending")
       ))
       .orderBy(desc(issues.createdAt));
@@ -221,7 +221,7 @@ export class DatabaseStorage implements IStorage {
     return db
       .select()
       .from(changes)
-      .where(sql`${changes.websiteId} IN ${websiteIds}`)
+      .where(inArray(changes.websiteId, websiteIds))
       .orderBy(desc(changes.createdAt));
   }
 
