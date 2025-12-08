@@ -164,6 +164,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteWebsite(id: string): Promise<void> {
+    // Delete related records in the correct order due to foreign key constraints
+    // 1. Delete agent logs
+    await db.delete(agentLogs).where(eq(agentLogs.websiteId, id));
+    
+    // 2. Get all audits for this website
+    const websiteAudits = await db.select().from(audits).where(eq(audits.websiteId, id));
+    const auditIds = websiteAudits.map(a => a.id);
+    
+    if (auditIds.length > 0) {
+      // 3. Get all issues for these audits
+      const websiteIssues = await db.select().from(issues).where(inArray(issues.auditId, auditIds));
+      const issueIds = websiteIssues.map(i => i.id);
+      
+      // 4. Delete changes linked to these issues
+      if (issueIds.length > 0) {
+        await db.delete(changes).where(inArray(changes.issueId, issueIds));
+      }
+      
+      // 5. Delete issues
+      await db.delete(issues).where(inArray(issues.auditId, auditIds));
+      
+      // 6. Delete audits
+      await db.delete(audits).where(eq(audits.websiteId, id));
+    }
+    
+    // 7. Finally delete the website
     await db.delete(websites).where(eq(websites.id, id));
   }
 
