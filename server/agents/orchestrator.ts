@@ -1,18 +1,24 @@
 import { storage } from "../storage";
 import { crawlWebsite } from "./crawler";
 import { analyzePageSEO, analyzeImageSEO, generateImageReport, calculateHealthScore } from "./seoAnalyzer";
-import { generateAIImprovement, generateAgentThought } from "./aiEngine";
+import { generateAIImprovement, generateAgentThought, generateModeAwareProposals } from "./aiEngine";
 import type { AgentType, CrawlResult, SEOIssue, ImageReport } from "./types";
-import type { Audit } from "@shared/schema";
+import type { Audit, OptimizationMode } from "@shared/schema";
+import { DraftManager } from "./draftManager";
+import { getModeLabel, getModeSettings, calculateSeoImpactEstimate } from "./optimizationModes";
 
 export class AgentOrchestrator {
   private auditId: string;
   private websiteId: string;
   private currentProgress: number = 0;
+  private optimizationMode: OptimizationMode;
+  private draftManager: DraftManager;
 
-  constructor(auditId: string, websiteId: string) {
+  constructor(auditId: string, websiteId: string, optimizationMode: OptimizationMode = "balanced") {
     this.auditId = auditId;
     this.websiteId = websiteId;
+    this.optimizationMode = optimizationMode;
+    this.draftManager = new DraftManager(auditId, websiteId, optimizationMode);
   }
 
   private async updateProgress(progress: number, currentStep?: string) {
@@ -52,10 +58,11 @@ export class AgentOrchestrator {
       await this.updateProgress(5, "Initialisierung");
 
       // Phase 1: Strategy Agent plans the audit
+      const modeLabel = getModeLabel(this.optimizationMode);
       await this.log(
         "strategy",
-        `Starting SEO audit for ${url}`,
-        "I will coordinate the audit process, starting with a comprehensive crawl of the website.",
+        `Starting SEO audit for ${url} (Mode: ${modeLabel})`,
+        `I will coordinate the audit process with ${modeLabel} optimization mode. Starting with a comprehensive crawl of the website.`,
         "Initialize audit"
       );
 
@@ -174,14 +181,14 @@ export class AgentOrchestrator {
       let lowCount = 0;
       let processedIssues = 0;
 
+      let draftsCreated = 0;
+      
       for (const issue of allIssues) {
-        // Get page context for AI improvement
         const pageContext = crawlResults.find(p => p.url === issue.pageUrl) || { url: issue.pageUrl };
         
-        // Generate AI improvement
-        const aiResult = await generateAIImprovement(issue, pageContext);
+        const modeProposals = await generateModeAwareProposals(issue, pageContext);
 
-        await storage.createIssue({
+        const createdIssue = await storage.createIssue({
           auditId: this.auditId,
           websiteId: this.websiteId,
           pageUrl: issue.pageUrl,
@@ -193,11 +200,17 @@ export class AgentOrchestrator {
           status: "pending",
           riskLevel: issue.riskLevel,
           currentValue: issue.currentValue,
-          suggestedValue: aiResult.suggestion,
-          aiReasoning: aiResult.reasoning,
-          confidence: aiResult.confidence,
+          suggestedValue: modeProposals[this.optimizationMode],
+          aiReasoning: modeProposals.reasoning,
+          confidence: modeProposals.confidences[this.optimizationMode],
           autoFixable: issue.autoFixable,
+          aiFixProposalSafe: modeProposals.safe,
+          aiFixProposalRecommended: modeProposals.balanced,
+          aiFixProposalAggressive: modeProposals.aggressive,
         });
+
+        const drafts = await this.draftManager.createDraftsForIssue(createdIssue);
+        draftsCreated += drafts.length;
 
         switch (issue.severity) {
           case "critical": criticalCount++; break;
@@ -207,7 +220,6 @@ export class AgentOrchestrator {
         }
         
         processedIssues++;
-        // Update progress during AI improvement generation (55-85%)
         const totalIssuesCount = allIssues.length || 1;
         const aiProgress = 55 + Math.floor((processedIssues / totalIssuesCount) * 30);
         await this.updateProgress(aiProgress, `Issue ${processedIssues}/${allIssues.length} verarbeitet`);
@@ -216,9 +228,9 @@ export class AgentOrchestrator {
       await this.log(
         "content",
         allIssues.length > 0 
-          ? `Generated AI improvements for all ${allIssues.length} issues`
+          ? `Generated ${modeLabel} mode proposals for all ${allIssues.length} issues (${draftsCreated} drafts created)`
           : "No issues found - website is well optimized!",
-        "AI analysis complete. Each issue now has optimized suggestions based on page context.",
+        `AI analysis complete with ${modeLabel} optimization mode. Each issue has Safe/Balanced/Aggressive proposals. Created ${draftsCreated} drafts for approval.`,
         "Improvements ready"
       );
       
@@ -246,7 +258,13 @@ export class AgentOrchestrator {
         "Ready for fixes"
       );
 
-      // Update audit with results
+      const impactEstimate = calculateSeoImpactEstimate(
+        this.optimizationMode, 
+        allIssues.length, 
+        criticalCount, 
+        highCount
+      );
+
       const updatedAudit = await storage.updateAudit(this.auditId, {
         status: "completed",
         completedAt: new Date(),
@@ -260,6 +278,7 @@ export class AgentOrchestrator {
         score: healthScore,
         pagesScanned: crawlResults.length,
         crawlData: crawlResults as any,
+        optimizationMode: this.optimizationMode,
       });
 
       // Update website health score
@@ -268,11 +287,10 @@ export class AgentOrchestrator {
         lastAuditAt: new Date(),
       });
 
-      // Final log
       await this.log(
         "strategy",
-        `Audit complete! Found ${allIssues.length} issues. Health score: ${healthScore}/100`,
-        "Audit completed successfully. Issues have been categorized by severity and risk level.",
+        `Audit complete! Found ${allIssues.length} issues. Health score: ${healthScore}/100. Mode: ${modeLabel}`,
+        `Audit completed successfully with ${modeLabel} mode. Created ${draftsCreated} optimization drafts. Estimated SEO impact: ${impactEstimate}`,
         "Audit finished"
       );
 
@@ -357,5 +375,35 @@ export class AgentOrchestrator {
     );
 
     return fixedCount;
+  }
+
+  async autoApplyDrafts(): Promise<number> {
+    const modeLabel = getModeLabel(this.optimizationMode);
+    
+    await this.log(
+      "fix",
+      `Starting auto-apply for low-risk drafts (${modeLabel} mode)`,
+      "Will automatically apply drafts that meet the confidence threshold for the current optimization mode.",
+      "Begin auto-apply"
+    );
+
+    const appliedCount = await this.draftManager.autoApplyLowRiskDrafts();
+
+    await this.log(
+      "fix",
+      `Auto-apply complete. Applied ${appliedCount} drafts.`,
+      `Successfully applied ${appliedCount} drafts that met the ${modeLabel} mode confidence threshold.`,
+      "Auto-apply complete"
+    );
+
+    return appliedCount;
+  }
+
+  async getDraftStats() {
+    return this.draftManager.getDraftStats();
+  }
+
+  getOptimizationMode(): OptimizationMode {
+    return this.optimizationMode;
   }
 }
