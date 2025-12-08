@@ -66,8 +66,11 @@ export default function Landing() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Button asChild data-testid="button-login">
-              <a href="/api/login">Sign In</a>
+            <Button variant="outline" asChild data-testid="button-login">
+              <a href="/login">Anmelden</a>
+            </Button>
+            <Button asChild data-testid="button-register">
+              <a href="/register">Registrieren</a>
             </Button>
           </div>
         </div>
@@ -91,13 +94,13 @@ export default function Landing() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button size="lg" asChild data-testid="button-get-started">
-                <a href="/api/login">
-                  Get Started Free
+                <a href="/register">
+                  Kostenlos starten
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </a>
               </Button>
               <Button variant="outline" size="lg" asChild>
-                <a href="#how-it-works">See How It Works</a>
+                <a href="#how-it-works">So funktioniert's</a>
               </Button>
             </div>
           </div>
@@ -190,8 +193,8 @@ export default function Landing() {
                 Join thousands of website owners who trust SiteScout AI for autonomous SEO optimization.
               </p>
               <Button size="lg" asChild data-testid="button-cta-bottom">
-                <a href="/api/login">
-                  Start Free Today
+                <a href="/register">
+                  Jetzt kostenlos starten
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </a>
               </Button>

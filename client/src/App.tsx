@@ -15,6 +15,8 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import Landing from "@/pages/Landing";
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
 import Websites from "@/pages/Websites";
 import Audits from "@/pages/Audits";
@@ -24,6 +26,7 @@ import History from "@/pages/History";
 import Performance from "@/pages/Performance";
 import Settings from "@/pages/Settings";
 import Pricing from "@/pages/Pricing";
+import AuditReport from "@/pages/AuditReport";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
@@ -72,6 +75,9 @@ function Router() {
     return (
       <Switch>
         <Route path="/" component={Landing} />
+        <Route path="/login" component={Login} />
+        <Route path="/register" component={Register} />
+        <Route path="/pricing" component={Pricing} />
         <Route component={Landing} />
       </Switch>
     );
@@ -85,6 +91,7 @@ function Router() {
         <Route path="/websites/:id" component={Websites} />
         <Route path="/audits" component={Audits} />
         <Route path="/audits/:id" component={AuditDetail} />
+        <Route path="/audits/:id/report" component={AuditReport} />
         <Route path="/logs" component={AgentLogs} />
         <Route path="/history" component={History} />
         <Route path="/performance" component={Performance} />

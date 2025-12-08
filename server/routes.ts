@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { isAuthenticated, setupAuth } from "./replitAuth";
+import { setupLocalAuth } from "./localAuth";
 import { storage } from "./storage";
 import { AgentOrchestrator } from "./agents/orchestrator";
 import { insertWebsiteSchema } from "@shared/schema";
@@ -12,8 +13,11 @@ const FREE_AUDIT_LIMIT = 5;
 const PRO_AUDIT_LIMIT = 100;
 
 export async function registerRoutes(server: Server, app: Express) {
-  // Set up authentication
+  // Set up authentication (Replit OIDC)
   await setupAuth(app);
+  
+  // Set up local authentication (Email/Password)
+  setupLocalAuth(app);
   
   // Get current user
   app.get("/api/auth/user", isAuthenticated, async (req, res) => {

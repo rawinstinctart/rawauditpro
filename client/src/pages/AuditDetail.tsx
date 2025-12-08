@@ -131,10 +131,11 @@ export default function AuditDetail() {
   });
 
   const statusConfig = {
-    pending: { label: "Pending", icon: Clock, className: "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20" },
+    pending: { label: "Pending", icon: Clock, className: "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20", animated: false },
+    queued: { label: "Queued", icon: Clock, className: "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20", animated: false },
     running: { label: "Running", icon: Loader2, className: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20", animated: true },
-    completed: { label: "Completed", icon: CheckCircle, className: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20" },
-    failed: { label: "Failed", icon: XCircle, className: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20" },
+    completed: { label: "Completed", icon: CheckCircle, className: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20", animated: false },
+    failed: { label: "Failed", icon: XCircle, className: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20", animated: false },
   };
 
   if (auditLoading) {
@@ -191,20 +192,29 @@ export default function AuditDetail() {
           </div>
           <p className="text-muted-foreground text-sm">{audit.website?.url}</p>
         </div>
-        {lowRiskIssues.length > 0 && (
-          <Button
-            onClick={() => autoFixMutation.mutate()}
-            disabled={autoFixMutation.isPending}
-            data-testid="button-auto-fix"
-          >
-            {autoFixMutation.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Zap className="h-4 w-4 mr-2" />
-            )}
-            Auto-Fix {lowRiskIssues.length} Issues
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {audit.status === "completed" && (
+            <Button variant="outline" asChild data-testid="button-view-report">
+              <Link href={`/audits/${id}/report`}>
+                Report anzeigen
+              </Link>
+            </Button>
+          )}
+          {lowRiskIssues.length > 0 && (
+            <Button
+              onClick={() => autoFixMutation.mutate()}
+              disabled={autoFixMutation.isPending}
+              data-testid="button-auto-fix"
+            >
+              {autoFixMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Zap className="h-4 w-4 mr-2" />
+              )}
+              Auto-Fix {lowRiskIssues.length} Issues
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -222,8 +232,8 @@ export default function AuditDetail() {
             <p className="text-sm text-muted-foreground mb-1">Total Issues</p>
             <p className="text-2xl font-bold">{audit.totalIssues || 0}</p>
             <div className="flex items-center gap-2 mt-2">
-              {audit.criticalCount > 0 && <SeverityBadge severity="critical" showIcon={false} />}
-              {audit.highCount > 0 && <SeverityBadge severity="high" showIcon={false} />}
+              {(audit.criticalCount ?? 0) > 0 && <SeverityBadge severity="critical" showIcon={false} />}
+              {(audit.highCount ?? 0) > 0 && <SeverityBadge severity="high" showIcon={false} />}
             </div>
           </CardContent>
         </Card>
