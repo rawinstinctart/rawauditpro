@@ -19,8 +19,11 @@ import {
   Download,
   Image as ImageIcon,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import type { Audit, Issue, Website } from "@shared/schema";
+import { DraftReview, DraftStats } from "@/components/DraftReview";
+import { ModeBadge } from "@/components/OptimizationModeSelector";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 
@@ -331,6 +334,9 @@ export default function AuditReport() {
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <FileText className="h-6 w-6 text-primary" />
               SEO-Audit Report
+              {audit.optimizationMode && (
+                <ModeBadge mode={audit.optimizationMode as "safe" | "balanced" | "aggressive"} />
+              )}
             </h1>
             <p className="text-muted-foreground">
               {audit.website?.name || audit.website?.url} - {format(new Date(audit.createdAt!), "PPP", { locale: de })}
@@ -413,6 +419,10 @@ export default function AuditReport() {
       <IssueBreakdown issues={allIssues} />
 
       {imageStats && <ImageOptimizationCard stats={imageStats} />}
+
+      <DraftStats auditId={id!} />
+
+      <DraftReview auditId={id!} websiteId={audit.websiteId} isPro={false} />
 
       <TopIssuesList issues={topIssues} />
 
