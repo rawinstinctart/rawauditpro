@@ -392,6 +392,49 @@ export async function registerRoutes(server: Server, app: Express) {
       const fixedCount = issues.filter(i => i.status === "fixed" || i.status === "auto_fixed").length;
       const pendingCount = issues.filter(i => i.status === "pending").length;
 
+      const imageIssueTypes = [
+        "oversized_images", "png_to_webp", "oversized_dimensions", "images_missing_alt", 
+        "missing_lazy_loading", "duplicate_images", "poor_compression",
+        "oversized_file", "png_should_be_webp", "missing_alt", "duplicate_image", "no_lazy_loading"
+      ];
+      const imageIssues = issues.filter(i => imageIssueTypes.includes(i.issueType));
+      
+      let imageStats = null;
+      if (audit.crawlData && Array.isArray(audit.crawlData)) {
+        let totalImages = 0;
+        let imagesWithIssues = 0;
+        let totalOriginalSize = 0;
+        
+        for (const page of audit.crawlData as any[]) {
+          if (page.imagesDetailed && Array.isArray(page.imagesDetailed)) {
+            for (const img of page.imagesDetailed) {
+              totalImages++;
+              if (img.fileSize) {
+                totalOriginalSize += img.fileSize;
+              }
+              if (img.issues && img.issues.length > 0) {
+                imagesWithIssues++;
+              }
+            }
+          }
+        }
+        
+        if (totalImages > 0) {
+          const potentialSavingsPercent = imagesWithIssues > 0 
+            ? Math.min(50, (imagesWithIssues / totalImages) * 40)
+            : 0;
+          
+          imageStats = {
+            totalImages,
+            imagesWithIssues,
+            totalOriginalSizeKB: Math.round(totalOriginalSize / 1024),
+            potentialSavingsPercent: Math.round(potentialSavingsPercent),
+            estimatedSavingsKB: Math.round((totalOriginalSize * potentialSavingsPercent / 100) / 1024),
+            imageIssuesCount: imageIssues.length,
+          };
+        }
+      }
+
       res.json({
         audit,
         scoreBefore: audit.scoreBefore || estimateSeoScoreBefore(issues),
@@ -401,6 +444,7 @@ export async function registerRoutes(server: Server, app: Express) {
         pendingCount,
         topIssues: prioritized.slice(0, 3),
         allIssues: prioritized,
+        imageStats,
       });
     } catch (error) {
       console.error("Error fetching report:", error);

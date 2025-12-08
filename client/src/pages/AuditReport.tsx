@@ -17,10 +17,21 @@ import {
   BarChart3,
   FileText,
   Download,
+  Image as ImageIcon,
+  Zap,
 } from "lucide-react";
 import type { Audit, Issue, Website } from "@shared/schema";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
+
+interface ImageStats {
+  totalImages: number;
+  imagesWithIssues: number;
+  totalOriginalSizeKB: number;
+  potentialSavingsPercent: number;
+  estimatedSavingsKB: number;
+  imageIssuesCount: number;
+}
 
 interface ReportData {
   audit: Audit & { website?: Website };
@@ -31,6 +42,7 @@ interface ReportData {
   pendingCount: number;
   topIssues: Issue[];
   allIssues: Issue[];
+  imageStats?: ImageStats | null;
 }
 
 function ScoreComparison({ before, after }: { before: number; after: number }) {
@@ -202,6 +214,67 @@ function TopIssuesList({ issues }: { issues: Issue[] }) {
   );
 }
 
+function ImageOptimizationCard({ stats }: { stats: ImageStats }) {
+  const optimizationPercent = stats.totalImages > 0 
+    ? Math.round(((stats.totalImages - stats.imagesWithIssues) / stats.totalImages) * 100)
+    : 100;
+  
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <ImageIcon className="h-5 w-5 text-primary" />
+          Bild-Optimierung
+        </CardTitle>
+        <CardDescription>
+          Analyse der Bilder auf Ihrer Website
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div className="text-center p-3 rounded-lg bg-muted/50">
+            <div className="text-2xl font-bold">{stats.totalImages}</div>
+            <div className="text-xs text-muted-foreground">Bilder gefunden</div>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-muted/50">
+            <div className="text-2xl font-bold text-orange-600">{stats.imagesWithIssues}</div>
+            <div className="text-xs text-muted-foreground">Mit Problemen</div>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-muted/50">
+            <div className="text-2xl font-bold">{stats.totalOriginalSizeKB}KB</div>
+            <div className="text-xs text-muted-foreground">Gesamtgr.</div>
+          </div>
+          <div className="text-center p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
+            <div className="text-2xl font-bold text-green-600">{stats.estimatedSavingsKB}KB</div>
+            <div className="text-xs text-muted-foreground">Einsparpotenzial</div>
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span>Optimierungsfortschritt</span>
+            <span>{optimizationPercent}%</span>
+          </div>
+          <Progress value={optimizationPercent} className="h-2" />
+        </div>
+        
+        {stats.potentialSavingsPercent > 0 && (
+          <div className="mt-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-start gap-3">
+            <Zap className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <div className="font-medium text-blue-900 dark:text-blue-100">Optimierungspotenzial</div>
+              <p className="text-blue-700 dark:text-blue-300">
+                Durch Bildoptimierung k{"\u00F6"}nnen Sie bis zu {stats.potentialSavingsPercent}% der Bildgr{"\u00F6"}{"\u00DF"}e einsparen 
+                und die Ladezeit Ihrer Website verbessern.
+              </p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AuditReport() {
   const { id } = useParams<{ id: string }>();
 
@@ -242,7 +315,7 @@ export default function AuditReport() {
     );
   }
 
-  const { audit, scoreBefore, scoreAfter, totalIssues, fixedCount, pendingCount, topIssues, allIssues } = report;
+  const { audit, scoreBefore, scoreAfter, totalIssues, fixedCount, pendingCount, topIssues, allIssues, imageStats } = report;
   const fixedPercent = totalIssues > 0 ? Math.round((fixedCount / totalIssues) * 100) : 0;
 
   return (
@@ -338,6 +411,8 @@ export default function AuditReport() {
       <ScoreComparison before={scoreBefore} after={scoreAfter} />
 
       <IssueBreakdown issues={allIssues} />
+
+      {imageStats && <ImageOptimizationCard stats={imageStats} />}
 
       <TopIssuesList issues={topIssues} />
 
