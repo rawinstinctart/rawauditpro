@@ -19,7 +19,10 @@ export const severityEnum = pgEnum("severity", ["critical", "high", "medium", "l
 export const issueStatusEnum = pgEnum("issue_status", ["pending", "approved", "rejected", "fixed", "auto_fixed"]);
 export const riskLevelEnum = pgEnum("risk_level", ["high", "medium", "low"]);
 export const agentTypeEnum = pgEnum("agent_type", ["strategy", "audit", "content", "fix", "ranking"]);
-export const auditStatusEnum = pgEnum("audit_status", ["pending", "running", "completed", "failed"]);
+export const auditStatusEnum = pgEnum("audit_status", ["pending", "queued", "running", "completed", "failed"]);
+export const subscriptionTierEnum = pgEnum("subscription_tier", ["free", "pro"]);
+export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "canceled", "past_due", "trialing"]);
+export const fixVariantEnum = pgEnum("fix_variant", ["safe", "recommended", "aggressive"]);
 
 // Session storage table (IMPORTANT: Required for Replit Auth)
 export const sessions = pgTable(
@@ -36,9 +39,17 @@ export const sessions = pgTable(
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
+  passwordHash: varchar("password_hash"),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  subscriptionTier: subscriptionTierEnum("subscription_tier").default("free"),
+  subscriptionStatus: subscriptionStatusEnum("subscription_status").default("active"),
+  stripeCustomerId: varchar("stripe_customer_id"),
+  stripeSubscriptionId: varchar("stripe_subscription_id"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  auditCount: integer("audit_count").default(0),
+  auditResetAt: timestamp("audit_reset_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -61,13 +72,16 @@ export const websites = pgTable("websites", {
 export const audits = pgTable("audits", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   websiteId: varchar("website_id").notNull().references(() => websites.id),
-  status: auditStatusEnum("status").default("pending"),
+  status: auditStatusEnum("status").default("queued"),
+  progress: integer("progress").default(0),
   totalIssues: integer("total_issues").default(0),
   criticalCount: integer("critical_count").default(0),
   highCount: integer("high_count").default(0),
   mediumCount: integer("medium_count").default(0),
   lowCount: integer("low_count").default(0),
   score: integer("score").default(0),
+  scoreBefore: integer("score_before"),
+  scoreAfter: integer("score_after"),
   pagesScanned: integer("pages_scanned").default(0),
   crawlData: jsonb("crawl_data"),
   startedAt: timestamp("started_at"),
@@ -85,13 +99,22 @@ export const issues = pgTable("issues", {
   category: text("category").notNull(),
   title: text("title").notNull(),
   description: text("description"),
+  message: text("message"),
+  codeSnippet: text("code_snippet"),
   severity: severityEnum("severity").default("medium"),
   status: issueStatusEnum("status").default("pending"),
   riskLevel: riskLevelEnum("risk_level").default("medium"),
   currentValue: text("current_value"),
   suggestedValue: text("suggested_value"),
+  aiFixProposalSafe: text("ai_fix_proposal_safe"),
+  aiFixProposalRecommended: text("ai_fix_proposal_recommended"),
+  aiFixProposalAggressive: text("ai_fix_proposal_aggressive"),
+  chosenFixVariant: fixVariantEnum("chosen_fix_variant"),
   aiReasoning: text("ai_reasoning"),
+  riskExplanation: text("risk_explanation"),
   confidence: real("confidence").default(0),
+  confidenceScore: integer("confidence_score"),
+  impactScore: integer("impact_score"),
   autoFixable: boolean("auto_fixable").default(false),
   fixedAt: timestamp("fixed_at"),
   createdAt: timestamp("created_at").defaultNow(),

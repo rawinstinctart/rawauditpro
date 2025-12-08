@@ -23,6 +23,7 @@ import AgentLogs from "@/pages/AgentLogs";
 import History from "@/pages/History";
 import Performance from "@/pages/Performance";
 import Settings from "@/pages/Settings";
+import Pricing from "@/pages/Pricing";
 import NotFound from "@/pages/not-found";
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
@@ -88,6 +89,7 @@ function Router() {
         <Route path="/history" component={History} />
         <Route path="/performance" component={Performance} />
         <Route path="/settings" component={Settings} />
+        <Route path="/pricing" component={Pricing} />
         <Route component={NotFound} />
       </Switch>
     </AuthenticatedLayout>

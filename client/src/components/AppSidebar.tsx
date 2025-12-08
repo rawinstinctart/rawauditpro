@@ -30,6 +30,7 @@ import {
   LogOut,
   ChevronUp,
   TrendingUp,
+  CreditCard,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -43,6 +44,7 @@ const navItems = [
 ];
 
 const settingsItems = [
+  { title: "Pricing", href: "/pricing", icon: CreditCard },
   { title: "Settings", href: "/settings", icon: Settings },
 ];
 

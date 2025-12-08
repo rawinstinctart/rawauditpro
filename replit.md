@@ -219,7 +219,36 @@ Preferred communication style: Simple, everyday language.
 - `SESSION_SECRET` - Session encryption key
 - `REPL_ID` - Replit environment identifier (for OIDC)
 
+**For Stripe Billing (SiteScout 3.0)**:
+- `STRIPE_PRO_PRICE_ID` - Stripe Price ID for Pro subscription (e.g., price_1ABC123...)
+
 **Optional**:
 - `OPENAI_API_KEY` - Enable AI-powered suggestions
 - `ISSUER_URL` - OIDC issuer URL (defaults to Replit)
 - `NODE_ENV` - Environment mode (development/production)
+
+## SiteScout 3.0 Features
+
+### Subscription Plans
+- **Free Plan**: 5 audits/month, basic SEO analysis, no auto-fix
+- **Pro Plan**: Unlimited audits, AI-powered auto-fixes, detailed reports, score tracking
+
+### Fix Variant System
+Three AI-generated fix proposals for each issue:
+- **Safe**: Conservative changes with minimal risk
+- **Recommended**: Balanced optimization (default)
+- **Aggressive**: Maximum SEO impact, higher risk
+
+### Human-in-the-Loop Workflow
+- Risk badges on issues open modal with fix variant selection
+- Confidence scores and risk explanations for each fix
+- Manual approval required for high-risk changes
+- Low-risk issues can be auto-fixed (Pro only)
+
+### New API Endpoints (3.0)
+- `POST /api/issues/:id/fix` - Generate fix variants
+- `POST /api/issues/:id/confirm-fix` - Apply chosen fix variant (Pro only)
+- `GET /api/audits/:id/report` - Get detailed audit report with scores
+- `POST /api/stripe/create-checkout-session` - Start Pro subscription
+- `POST /api/stripe/customer-portal` - Manage subscription
+- `GET /api/subscription` - Get current subscription status

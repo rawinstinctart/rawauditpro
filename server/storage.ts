@@ -22,7 +22,7 @@ import {
   type InsertAgentMemory,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, inArray } from "drizzle-orm";
+import { eq, desc, and, inArray, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -86,6 +86,57 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async getUserByStripeCustomerId(customerId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.stripeCustomerId, customerId));
+    return user;
+  }
+
+  async createUser(userData: Omit<UpsertUser, 'id'>): Promise<User> {
+    const [user] = await db.insert(users).values(userData).returning();
+    return user;
+  }
+
+  async updateUserSubscription(userId: string, data: {
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string | null;
+    subscriptionTier?: 'free' | 'pro';
+    subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'trialing';
+    currentPeriodEnd?: Date | null;
+  }): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return updated;
+  }
+
+  async incrementAuditCount(userId: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ 
+        auditCount: sql`COALESCE(${users.auditCount}, 0) + 1`,
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async resetAuditCount(userId: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ 
+        auditCount: 0,
+        auditResetAt: new Date(),
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId));
   }
 
   // Website operations

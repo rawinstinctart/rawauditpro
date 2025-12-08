@@ -4,6 +4,12 @@ import { isAuthenticated, setupAuth } from "./replitAuth";
 import { storage } from "./storage";
 import { AgentOrchestrator } from "./agents/orchestrator";
 import { insertWebsiteSchema } from "@shared/schema";
+import { stripeService } from "./stripeService";
+import { getStripePublishableKey } from "./stripeClient";
+import { generateFixVariants, analyzeRisk, prioritizeIssues, estimateSeoScoreBefore, estimateSeoScoreAfter } from "./lib/ai";
+
+const FREE_AUDIT_LIMIT = 5;
+const PRO_AUDIT_LIMIT = 100;
 
 export async function registerRoutes(server: Server, app: Express) {
   // Set up authentication
@@ -282,6 +288,210 @@ export async function registerRoutes(server: Server, app: Express) {
       res.json(logs);
     } catch (error) {
       console.error("Error fetching recent agent logs:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Issue fix variants generation
+  app.post("/api/issues/:id/fix", isAuthenticated, async (req, res) => {
+    try {
+      const issue = await storage.getIssue(req.params.id);
+      if (!issue) {
+        return res.status(404).json({ message: "Issue not found" });
+      }
+
+      const riskAnalysis = analyzeRisk(issue);
+      const fixVariants = generateFixVariants(issue);
+
+      await storage.updateIssue(req.params.id, {
+        aiFixProposalSafe: fixVariants.safeFix,
+        aiFixProposalRecommended: fixVariants.recommendedFix,
+        aiFixProposalAggressive: fixVariants.aggressiveFix,
+        confidenceScore: fixVariants.confidenceScore,
+        riskLevel: riskAnalysis.risk,
+        riskExplanation: riskAnalysis.riskExplanation,
+      });
+
+      res.json({
+        ...issue,
+        ...fixVariants,
+        ...riskAnalysis,
+      });
+    } catch (error) {
+      console.error("Error generating fix variants:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Confirm fix with chosen variant
+  app.post("/api/issues/:id/confirm-fix", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user || user.subscriptionTier !== "pro") {
+        return res.status(403).json({ message: "Pro subscription required for auto-fix" });
+      }
+
+      const { variant } = req.body;
+      if (!variant || !["safe", "recommended", "aggressive"].includes(variant)) {
+        return res.status(400).json({ message: "Invalid fix variant" });
+      }
+
+      const issue = await storage.getIssue(req.params.id);
+      if (!issue) {
+        return res.status(404).json({ message: "Issue not found" });
+      }
+
+      let afterValue = issue.suggestedValue;
+      if (variant === "safe") afterValue = issue.aiFixProposalSafe || issue.suggestedValue;
+      if (variant === "recommended") afterValue = issue.aiFixProposalRecommended || issue.suggestedValue;
+      if (variant === "aggressive") afterValue = issue.aiFixProposalAggressive || issue.suggestedValue;
+
+      await storage.updateIssue(req.params.id, {
+        status: "fixed",
+        chosenFixVariant: variant,
+        fixedAt: new Date(),
+      });
+
+      await storage.createChange({
+        issueId: issue.id,
+        websiteId: issue.websiteId,
+        changeType: issue.issueType,
+        pageUrl: issue.pageUrl,
+        beforeValue: issue.currentValue || undefined,
+        afterValue: afterValue || undefined,
+        status: "applied",
+      });
+
+      const allIssues = await storage.getIssues(issue.auditId);
+      const scoreAfter = estimateSeoScoreAfter(allIssues);
+      await storage.updateAudit(issue.auditId, { scoreAfter });
+
+      res.json({ success: true, scoreAfter });
+    } catch (error) {
+      console.error("Error confirming fix:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Report data endpoint
+  app.get("/api/audits/:id/report", isAuthenticated, async (req, res) => {
+    try {
+      const audit = await storage.getAudit(req.params.id);
+      if (!audit) {
+        return res.status(404).json({ message: "Audit not found" });
+      }
+
+      const issues = await storage.getIssues(req.params.id);
+      const prioritized = prioritizeIssues(issues);
+      const fixedCount = issues.filter(i => i.status === "fixed" || i.status === "auto_fixed").length;
+      const pendingCount = issues.filter(i => i.status === "pending").length;
+
+      res.json({
+        audit,
+        scoreBefore: audit.scoreBefore || estimateSeoScoreBefore(issues),
+        scoreAfter: audit.scoreAfter || estimateSeoScoreAfter(issues),
+        totalIssues: issues.length,
+        fixedCount,
+        pendingCount,
+        topIssues: prioritized.slice(0, 3),
+        allIssues: prioritized,
+      });
+    } catch (error) {
+      console.error("Error fetching report:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Stripe routes
+  app.get("/api/stripe/publishable-key", async (req, res) => {
+    try {
+      const key = await getStripePublishableKey();
+      res.json({ publishableKey: key });
+    } catch (error) {
+      console.error("Error fetching Stripe key:", error);
+      res.status(500).json({ message: "Stripe not configured" });
+    }
+  });
+
+  app.post("/api/stripe/create-checkout-session", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { plan } = req.body;
+      if (plan !== "pro") {
+        return res.status(400).json({ message: "Invalid plan" });
+      }
+
+      const proPriceId = process.env.STRIPE_PRO_PRICE_ID;
+      if (!proPriceId) {
+        return res.status(500).json({ 
+          message: "Stripe Pro-Preis nicht konfiguriert. Bitte STRIPE_PRO_PRICE_ID in den Umgebungsvariablen setzen." 
+        });
+      }
+
+      let customerId = user.stripeCustomerId;
+      if (!customerId) {
+        const customer = await stripeService.createCustomer(user.email || "", user.id);
+        await storage.updateUserSubscription(user.id, { stripeCustomerId: customer.id });
+        customerId = customer.id;
+      }
+
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const session = await stripeService.createCheckoutSession(
+        customerId,
+        proPriceId,
+        `${baseUrl}/dashboard?success=true`,
+        `${baseUrl}/pricing?canceled=true`
+      );
+
+      res.json({ url: session.url });
+    } catch (error: any) {
+      console.error("Error creating checkout session:", error);
+      res.status(500).json({ message: error?.message || "Fehler beim Erstellen der Checkout-Session" });
+    }
+  });
+
+  app.post("/api/stripe/customer-portal", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const user = await storage.getUser(userId);
+      if (!user?.stripeCustomerId) {
+        return res.status(400).json({ message: "No subscription found" });
+      }
+
+      const baseUrl = `${req.protocol}://${req.get("host")}`;
+      const session = await stripeService.createCustomerPortalSession(
+        user.stripeCustomerId,
+        `${baseUrl}/settings`
+      );
+
+      res.json({ url: session.url });
+    } catch (error) {
+      console.error("Error creating portal session:", error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  app.get("/api/subscription", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const user = await storage.getUser(userId);
+      
+      res.json({
+        tier: user?.subscriptionTier || "free",
+        status: user?.subscriptionStatus || "active",
+        currentPeriodEnd: user?.currentPeriodEnd,
+        auditCount: user?.auditCount || 0,
+        auditLimit: user?.subscriptionTier === "pro" ? PRO_AUDIT_LIMIT : FREE_AUDIT_LIMIT,
+      });
+    } catch (error) {
+      console.error("Error fetching subscription:", error);
       res.status(500).json({ message: "Internal server error" });
     }
   });
