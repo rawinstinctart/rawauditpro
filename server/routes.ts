@@ -505,11 +505,20 @@ export async function registerRoutes(server: Server, app: Express) {
 
   app.post("/api/drafts/:id/approve", isAuthenticated, async (req, res) => {
     try {
-      const draft = await storage.approveDraft(req.params.id);
+      const userId = (req.user as any)?.claims?.sub;
+      const draft = await storage.getDraft(req.params.id);
       if (!draft) {
         return res.status(404).json({ message: "Draft not found" });
       }
-      res.json(draft);
+      
+      // Ownership validation
+      const website = await storage.getWebsite(draft.websiteId);
+      if (!website || website.userId !== userId) {
+        return res.status(403).json({ message: "Not authorized to approve this draft" });
+      }
+      
+      const approved = await storage.approveDraft(req.params.id);
+      res.json(approved);
     } catch (error) {
       console.error("Error approving draft:", error);
       res.status(500).json({ message: "Internal server error" });
@@ -518,11 +527,20 @@ export async function registerRoutes(server: Server, app: Express) {
 
   app.post("/api/drafts/:id/reject", isAuthenticated, async (req, res) => {
     try {
-      const draft = await storage.rejectDraft(req.params.id);
+      const userId = (req.user as any)?.claims?.sub;
+      const draft = await storage.getDraft(req.params.id);
       if (!draft) {
         return res.status(404).json({ message: "Draft not found" });
       }
-      res.json(draft);
+      
+      // Ownership validation
+      const website = await storage.getWebsite(draft.websiteId);
+      if (!website || website.userId !== userId) {
+        return res.status(403).json({ message: "Not authorized to reject this draft" });
+      }
+      
+      const rejected = await storage.rejectDraft(req.params.id);
+      res.json(rejected);
     } catch (error) {
       console.error("Error rejecting draft:", error);
       res.status(500).json({ message: "Internal server error" });
@@ -541,6 +559,12 @@ export async function registerRoutes(server: Server, app: Express) {
       const draft = await storage.getDraft(req.params.id);
       if (!draft) {
         return res.status(404).json({ message: "Draft not found" });
+      }
+      
+      // Ownership validation
+      const website = await storage.getWebsite(draft.websiteId);
+      if (!website || website.userId !== userId) {
+        return res.status(403).json({ message: "Not authorized to apply this draft" });
       }
       
       if (draft.status !== "approved") {
@@ -566,6 +590,7 @@ export async function registerRoutes(server: Server, app: Express) {
 
   app.patch("/api/drafts/:id/select-mode", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req.user as any)?.claims?.sub;
       const { mode } = req.body;
       if (!mode || !["safe", "balanced", "aggressive"].includes(mode)) {
         return res.status(400).json({ message: "Invalid mode. Must be safe, balanced, or aggressive." });
@@ -574,6 +599,12 @@ export async function registerRoutes(server: Server, app: Express) {
       const draft = await storage.getDraft(req.params.id);
       if (!draft) {
         return res.status(404).json({ message: "Draft not found" });
+      }
+      
+      // Ownership validation
+      const website = await storage.getWebsite(draft.websiteId);
+      if (!website || website.userId !== userId) {
+        return res.status(403).json({ message: "Not authorized to modify this draft" });
       }
 
       const updated = await storage.updateDraft(req.params.id, { selectedProposal: mode });
@@ -586,9 +617,20 @@ export async function registerRoutes(server: Server, app: Express) {
 
   app.post("/api/drafts/bulk-approve", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req.user as any)?.claims?.sub;
       const { draftIds } = req.body;
       if (!Array.isArray(draftIds) || draftIds.length === 0) {
         return res.status(400).json({ message: "draftIds array required" });
+      }
+
+      // Ownership validation for all drafts
+      for (const draftId of draftIds) {
+        const draft = await storage.getDraft(draftId);
+        if (!draft) continue;
+        const website = await storage.getWebsite(draft.websiteId);
+        if (!website || website.userId !== userId) {
+          return res.status(403).json({ message: "Not authorized to approve one or more drafts" });
+        }
       }
 
       const approvedCount = await storage.bulkApproveDrafts(draftIds);
@@ -611,6 +653,16 @@ export async function registerRoutes(server: Server, app: Express) {
       const { draftIds } = req.body;
       if (!Array.isArray(draftIds) || draftIds.length === 0) {
         return res.status(400).json({ message: "draftIds array required" });
+      }
+
+      // Ownership validation for all drafts
+      for (const draftId of draftIds) {
+        const draft = await storage.getDraft(draftId);
+        if (!draft) continue;
+        const website = await storage.getWebsite(draft.websiteId);
+        if (!website || website.userId !== userId) {
+          return res.status(403).json({ message: "Not authorized to apply one or more drafts" });
+        }
       }
 
       const appliedCount = await storage.bulkApplyDrafts(draftIds);
