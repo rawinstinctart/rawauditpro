@@ -1,5 +1,7 @@
 import OpenAI from "openai";
 import type { SEOIssue, CrawlResult, AgentThought } from "./types";
+import type { OptimizationMode } from "@shared/schema";
+import { getModeSettings, type ModeSettings } from "./optimizationModes";
 
 // Check if OpenAI is available
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
@@ -243,4 +245,327 @@ Generate an SEO-optimized meta description:`,
     console.error("Meta description improvement failed:", error);
     return currentDescription;
   }
+}
+
+export interface ModeAwareProposals {
+  safe: string;
+  balanced: string;
+  aggressive: string;
+  reasoning: string;
+  confidences: { safe: number; balanced: number; aggressive: number };
+}
+
+export async function generateModeAwareProposals(
+  issue: SEOIssue,
+  pageContext: CrawlResult
+): Promise<ModeAwareProposals> {
+  if (!openai) {
+    return generateRuleBasedProposals(issue, pageContext);
+  }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert SEO consultant. Generate THREE optimization proposals for the given SEO issue:
+
+1. SAFE (Sicher): Minimal changes, conservative approach, very low risk
+2. BALANCED (Ausgewogen): Moderate optimization, good balance of risk and impact
+3. AGGRESSIVE (Aggressiv): Maximum SEO impact, higher risk, complete restructuring allowed
+
+Output JSON with:
+{
+  "safe": "The safe proposal text",
+  "balanced": "The balanced proposal text", 
+  "aggressive": "The aggressive proposal text",
+  "reasoning": "Brief explanation of the different approaches",
+  "confidences": { "safe": 0.95, "balanced": 0.85, "aggressive": 0.70 }
+}`,
+        },
+        {
+          role: "user",
+          content: `Generate three optimization proposals for this SEO issue:
+
+Issue Type: ${issue.type}
+Category: ${issue.category}
+Title: ${issue.title}
+Description: ${issue.description}
+Current Value: ${issue.currentValue || "Not set"}
+Page URL: ${issue.pageUrl}
+
+Page Context:
+- Page Title: ${pageContext.title || "None"}
+- H1: ${pageContext.h1?.join(", ") || "None"}
+- Meta Description: ${pageContext.metaDescription || "None"}
+- Content Preview: ${pageContext.bodyText?.slice(0, 400) || "None"}
+
+Generate specific, SEO-optimized proposals for each mode.`,
+        },
+      ],
+      response_format: { type: "json_object" },
+      max_tokens: 800,
+      temperature: 0.7,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (content) {
+      const parsed = JSON.parse(content);
+      return {
+        safe: parsed.safe || issue.suggestedValue || "",
+        balanced: parsed.balanced || issue.suggestedValue || "",
+        aggressive: parsed.aggressive || issue.suggestedValue || "",
+        reasoning: parsed.reasoning || "AI-generated optimization proposals.",
+        confidences: parsed.confidences || { safe: 0.9, balanced: 0.8, aggressive: 0.7 },
+      };
+    }
+  } catch (error) {
+    console.error("Mode-aware proposals generation failed:", error);
+  }
+
+  return generateRuleBasedProposals(issue, pageContext);
+}
+
+function generateRuleBasedProposals(
+  issue: SEOIssue,
+  pageContext: CrawlResult
+): ModeAwareProposals {
+  const currentValue = issue.currentValue || "";
+  const suggested = issue.suggestedValue || "";
+  
+  let safe = suggested;
+  let balanced = suggested;
+  let aggressive = suggested;
+  let reasoning = "Rule-based optimization proposals generated.";
+
+  switch (issue.type) {
+    case "missing_title":
+    case "short_title":
+    case "long_title":
+      const baseTitle = pageContext.h1?.[0] || pageContext.title || "Qualitäts-Service";
+      safe = baseTitle.slice(0, 55);
+      balanced = `${baseTitle.slice(0, 45)} | Ihr Experte`;
+      aggressive = `${baseTitle.slice(0, 35)} | #1 Anbieter | Jetzt entdecken`;
+      reasoning = "Titel-Optimierung für verschiedene SEO-Strategien.";
+      break;
+
+    case "missing_meta_description":
+    case "short_meta_description":
+    case "long_meta_description":
+      const baseDesc = pageContext.bodyText?.slice(0, 100) || "Entdecken Sie unsere Leistungen";
+      safe = `${baseDesc}. Mehr erfahren.`;
+      balanced = `${baseDesc}. Kontaktieren Sie uns für eine Beratung.`;
+      aggressive = `${baseDesc}. Jetzt 20% Rabatt sichern! Schnelle Lieferung.`;
+      reasoning = "Meta-Description-Optimierung für bessere Klickraten.";
+      break;
+
+    case "missing_h1":
+    case "multiple_h1":
+      safe = pageContext.title || "Unsere Leistungen";
+      balanced = `${pageContext.title || "Professionelle Lösungen"} - Qualität garantiert`;
+      aggressive = `${pageContext.title || "Beste Lösungen"} | Marktführer seit 2010`;
+      reasoning = "H1-Optimierung für klare Seitenstruktur.";
+      break;
+
+    case "few_internal_links":
+      safe = "1-2 relevante interne Links hinzufügen";
+      balanced = "3-5 kontextbezogene interne Links mit optimierten Ankertexten";
+      aggressive = "8-10 interne Links mit keyword-reichen Ankertexten über den Content verteilt";
+      reasoning = "Interne Verlinkung für bessere Seitenarchitektur.";
+      break;
+
+    default:
+      safe = suggested || currentValue;
+      balanced = suggested || currentValue;
+      aggressive = suggested || currentValue;
+      reasoning = "Standard-Optimierungsvorschläge.";
+  }
+
+  return {
+    safe,
+    balanced,
+    aggressive,
+    reasoning,
+    confidences: { safe: 0.9, balanced: 0.8, aggressive: 0.65 },
+  };
+}
+
+export async function generateAIImprovementWithModes(
+  issue: SEOIssue,
+  pageContext: CrawlResult,
+  mode: OptimizationMode
+): Promise<{ suggestion: string; reasoning: string; confidence: number; allProposals: ModeAwareProposals }> {
+  const proposals = await generateModeAwareProposals(issue, pageContext);
+  
+  const suggestion = proposals[mode];
+  const confidence = proposals.confidences[mode];
+  
+  return {
+    suggestion,
+    reasoning: proposals.reasoning,
+    confidence,
+    allProposals: proposals,
+  };
+}
+
+export async function optimizeHeadings(
+  headings: string[],
+  pageContext: CrawlResult,
+  mode: OptimizationMode
+): Promise<{ optimized: string[]; changes: { original: string; new: string; level: string }[] }> {
+  const settings = getModeSettings(mode);
+  const changes: { original: string; new: string; level: string }[] = [];
+  const optimized: string[] = [];
+
+  for (let i = 0; i < headings.length; i++) {
+    const heading = headings[i];
+    let newHeading = heading;
+
+    if (settings.headings.restructuringLevel !== "minor" || !heading) {
+      switch (mode) {
+        case "safe":
+          newHeading = heading || pageContext.title || "Unsere Leistungen";
+          break;
+        case "balanced":
+          newHeading = heading 
+            ? `${heading} - Qualität & Service`
+            : `${pageContext.title || "Professionelle Lösungen"}`;
+          break;
+        case "aggressive":
+          newHeading = heading
+            ? `${heading} | Beste Wahl für Anspruchsvolle`
+            : `${pageContext.title || "Marktführende Lösungen"} | Jetzt entdecken`;
+          break;
+      }
+    }
+
+    if (newHeading !== heading) {
+      changes.push({ original: heading, new: newHeading, level: `H${i + 1}` });
+    }
+    optimized.push(newHeading);
+  }
+
+  return { optimized, changes };
+}
+
+export async function optimizeKeywords(
+  content: string,
+  targetKeywords: string[],
+  mode: OptimizationMode
+): Promise<{ optimized: string; keywordDensity: number; changes: string[] }> {
+  const settings = getModeSettings(mode);
+  const changes: string[] = [];
+  let optimized = content;
+  
+  const targetDensity = settings.keywords.densityTarget;
+  const words = content.split(/\s+/).length;
+  
+  for (const keyword of targetKeywords) {
+    const currentCount = (content.match(new RegExp(keyword, "gi")) || []).length;
+    const currentDensity = (currentCount / words) * 100;
+    
+    if (currentDensity < targetDensity) {
+      const insertions = Math.ceil((targetDensity - currentDensity) * words / 100);
+      changes.push(`Keyword "${keyword}": ${insertions} zusätzliche Verwendungen vorgeschlagen`);
+    }
+  }
+
+  const keywordDensity = targetKeywords.reduce((sum, kw) => {
+    return sum + ((content.match(new RegExp(kw, "gi")) || []).length / words) * 100;
+  }, 0);
+
+  return { optimized, keywordDensity, changes };
+}
+
+export async function optimizeMeta(
+  title: string,
+  description: string,
+  pageContext: CrawlResult,
+  mode: OptimizationMode
+): Promise<{ title: string; description: string; changes: { field: string; before: string; after: string }[] }> {
+  const settings = getModeSettings(mode);
+  const changes: { field: string; before: string; after: string }[] = [];
+
+  let newTitle = title;
+  let newDescription = description;
+
+  if (!title || title.length < 30 || title.length > 60) {
+    switch (mode) {
+      case "safe":
+        newTitle = (pageContext.h1?.[0] || title || "Qualitäts-Service").slice(0, 55);
+        break;
+      case "balanced":
+        newTitle = `${(pageContext.h1?.[0] || title || "Professioneller Service").slice(0, 45)} | Experte`;
+        break;
+      case "aggressive":
+        newTitle = `${(pageContext.h1?.[0] || title || "Top-Service").slice(0, 35)} | #1 Anbieter | Jetzt`;
+        break;
+    }
+    if (newTitle !== title) {
+      changes.push({ field: "title", before: title, after: newTitle });
+    }
+  }
+
+  if (!description || description.length < 120 || description.length > 160) {
+    const baseDesc = pageContext.bodyText?.slice(0, 100) || description || "Entdecken Sie unsere Leistungen";
+    switch (mode) {
+      case "safe":
+        newDescription = `${baseDesc}. Mehr erfahren.`.slice(0, 155);
+        break;
+      case "balanced":
+        newDescription = `${baseDesc}. Kontaktieren Sie uns für eine kostenlose Beratung.`.slice(0, 155);
+        break;
+      case "aggressive":
+        newDescription = `${baseDesc}. Jetzt Angebot sichern! Top-Bewertungen & schnelle Lieferung.`.slice(0, 155);
+        break;
+    }
+    if (newDescription !== description) {
+      changes.push({ field: "description", before: description, after: newDescription });
+    }
+  }
+
+  return { title: newTitle, description: newDescription, changes };
+}
+
+export async function optimizeInternalLinks(
+  existingLinks: { url: string; text: string }[],
+  availablePages: { url: string; title: string }[],
+  pageUrl: string,
+  mode: OptimizationMode
+): Promise<{ newLinks: { url: string; anchorText: string; context: string }[]; changes: string[] }> {
+  const settings = getModeSettings(mode);
+  const maxNewLinks = settings.internalLinks.maxNewLinks;
+  const changes: string[] = [];
+  const newLinks: { url: string; anchorText: string; context: string }[] = [];
+
+  const existingUrls = new Set(existingLinks.map(l => l.url));
+  const candidatePages = availablePages
+    .filter(p => p.url !== pageUrl && !existingUrls.has(p.url))
+    .slice(0, maxNewLinks);
+
+  for (const page of candidatePages) {
+    let anchorText = page.title;
+    
+    switch (settings.internalLinks.anchorTextOptimization) {
+      case "minimal":
+        anchorText = page.title.slice(0, 30);
+        break;
+      case "balanced":
+        anchorText = `${page.title.slice(0, 40)} - Mehr erfahren`;
+        break;
+      case "aggressive":
+        anchorText = `Entdecken Sie ${page.title.slice(0, 35)} - Jetzt ansehen`;
+        break;
+    }
+
+    newLinks.push({
+      url: page.url,
+      anchorText,
+      context: `Link zu verwandtem Inhalt: ${page.title}`,
+    });
+    changes.push(`Neuer Link: "${anchorText}" → ${page.url}`);
+  }
+
+  return { newLinks, changes };
 }
