@@ -409,6 +409,14 @@ export async function registerRoutes(server: Server, app: Express) {
   });
 
   // Stripe routes
+  app.get("/api/stripe/config", async (req, res) => {
+    const isConfigured = !!process.env.STRIPE_PRO_PRICE_ID;
+    res.json({ 
+      isConfigured,
+      message: isConfigured ? null : "Stripe ist noch nicht konfiguriert. Bitte STRIPE_PRO_PRICE_ID setzen."
+    });
+  });
+
   app.get("/api/stripe/publishable-key", async (req, res) => {
     try {
       const key = await getStripePublishableKey();

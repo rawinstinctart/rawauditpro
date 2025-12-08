@@ -1,11 +1,25 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Zap, Shield, BarChart3 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Check, X, Zap, Shield, BarChart3, AlertCircle } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+
+interface Subscription {
+  tier: string;
+  status: string;
+  currentPeriodEnd: string | null;
+  auditCount: number;
+  auditLimit: number;
+}
+
+interface StripeConfig {
+  isConfigured: boolean;
+  message: string | null;
+}
 
 const PLANS = {
   free: {
@@ -42,9 +56,13 @@ export default function Pricing() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const { data: subscription } = useQuery({
+  const { data: subscription } = useQuery<Subscription>({
     queryKey: ["/api/subscription"],
     enabled: !!user,
+  });
+
+  const { data: stripeConfig } = useQuery<StripeConfig>({
+    queryKey: ["/api/stripe/config"],
   });
 
   const checkoutMutation = useMutation({
@@ -174,6 +192,13 @@ export default function Pricing() {
               >
                 Abo verwalten
               </Button>
+            ) : stripeConfig?.isConfigured === false ? (
+              <Alert className="w-full">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  Zahlungen werden gerade eingerichtet. Bitte später erneut versuchen.
+                </AlertDescription>
+              </Alert>
             ) : (
               <Button 
                 className="w-full"
