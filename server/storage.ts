@@ -6,6 +6,7 @@ import {
   changes,
   agentLogs,
   agentMemory,
+  drafts,
   type User,
   type UpsertUser,
   type Website,
@@ -20,6 +21,9 @@ import {
   type InsertAgentLog,
   type AgentMemory,
   type InsertAgentMemory,
+  type Draft,
+  type InsertDraft,
+  type DraftStatus,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, inArray, sql } from "drizzle-orm";
@@ -64,6 +68,19 @@ export interface IStorage {
   // Agent memory operations
   getAgentMemory(userId: string): Promise<AgentMemory[]>;
   upsertAgentMemory(memory: InsertAgentMemory): Promise<AgentMemory>;
+  
+  // Draft operations
+  getDrafts(auditId: string): Promise<Draft[]>;
+  getDraftsByWebsite(websiteId: string): Promise<Draft[]>;
+  getPendingDrafts(websiteId: string): Promise<Draft[]>;
+  getDraft(id: string): Promise<Draft | undefined>;
+  createDraft(draft: InsertDraft): Promise<Draft>;
+  updateDraft(id: string, data: Partial<Draft>): Promise<Draft | undefined>;
+  approveDraft(id: string): Promise<Draft | undefined>;
+  rejectDraft(id: string): Promise<Draft | undefined>;
+  applyDraft(id: string): Promise<Draft | undefined>;
+  bulkApproveDrafts(draftIds: string[]): Promise<number>;
+  bulkApplyDrafts(draftIds: string[]): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -353,6 +370,85 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return result;
+  }
+
+  // Draft operations
+  async getDrafts(auditId: string): Promise<Draft[]> {
+    return db.select().from(drafts).where(eq(drafts.auditId, auditId)).orderBy(desc(drafts.createdAt));
+  }
+
+  async getDraftsByWebsite(websiteId: string): Promise<Draft[]> {
+    return db.select().from(drafts).where(eq(drafts.websiteId, websiteId)).orderBy(desc(drafts.createdAt));
+  }
+
+  async getPendingDrafts(websiteId: string): Promise<Draft[]> {
+    return db.select().from(drafts).where(
+      and(eq(drafts.websiteId, websiteId), eq(drafts.status, "pending"))
+    ).orderBy(desc(drafts.createdAt));
+  }
+
+  async getDraft(id: string): Promise<Draft | undefined> {
+    const [draft] = await db.select().from(drafts).where(eq(drafts.id, id));
+    return draft;
+  }
+
+  async createDraft(draft: InsertDraft): Promise<Draft> {
+    const [newDraft] = await db.insert(drafts).values(draft).returning();
+    return newDraft;
+  }
+
+  async updateDraft(id: string, data: Partial<Draft>): Promise<Draft | undefined> {
+    const [updated] = await db
+      .update(drafts)
+      .set(data)
+      .where(eq(drafts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async approveDraft(id: string): Promise<Draft | undefined> {
+    const [updated] = await db
+      .update(drafts)
+      .set({ status: "approved", approvedAt: new Date() })
+      .where(eq(drafts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async rejectDraft(id: string): Promise<Draft | undefined> {
+    const [updated] = await db
+      .update(drafts)
+      .set({ status: "rejected", rejectedAt: new Date() })
+      .where(eq(drafts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async applyDraft(id: string): Promise<Draft | undefined> {
+    const [updated] = await db
+      .update(drafts)
+      .set({ status: "applied", appliedAt: new Date() })
+      .where(eq(drafts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async bulkApproveDrafts(draftIds: string[]): Promise<number> {
+    if (draftIds.length === 0) return 0;
+    const result = await db
+      .update(drafts)
+      .set({ status: "approved", approvedAt: new Date() })
+      .where(and(inArray(drafts.id, draftIds), eq(drafts.status, "pending")));
+    return draftIds.length;
+  }
+
+  async bulkApplyDrafts(draftIds: string[]): Promise<number> {
+    if (draftIds.length === 0) return 0;
+    const result = await db
+      .update(drafts)
+      .set({ status: "applied", appliedAt: new Date() })
+      .where(and(inArray(drafts.id, draftIds), eq(drafts.status, "approved")));
+    return draftIds.length;
   }
 }
 

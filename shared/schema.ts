@@ -23,6 +23,9 @@ export const auditStatusEnum = pgEnum("audit_status", ["pending", "queued", "run
 export const subscriptionTierEnum = pgEnum("subscription_tier", ["free", "pro"]);
 export const subscriptionStatusEnum = pgEnum("subscription_status", ["active", "canceled", "past_due", "trialing"]);
 export const fixVariantEnum = pgEnum("fix_variant", ["safe", "recommended", "aggressive"]);
+export const optimizationModeEnum = pgEnum("optimization_mode", ["safe", "balanced", "aggressive"]);
+export const draftStatusEnum = pgEnum("draft_status", ["pending", "approved", "rejected", "applied", "expired"]);
+export const draftTypeEnum = pgEnum("draft_type", ["title", "meta_description", "heading", "keyword", "internal_link", "content", "image", "html_rewrite"]);
 
 // Session storage table (IMPORTANT: Required for Replit Auth)
 export const sessions = pgTable(
@@ -64,6 +67,8 @@ export const websites = pgTable("websites", {
   lastAuditAt: timestamp("last_audit_at"),
   healthScore: integer("health_score").default(0),
   isActive: boolean("is_active").default(true),
+  optimizationMode: optimizationModeEnum("optimization_mode").default("balanced"),
+  autoApplyEnabled: boolean("auto_apply_enabled").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -85,6 +90,10 @@ export const audits = pgTable("audits", {
   scoreAfter: integer("score_after"),
   pagesScanned: integer("pages_scanned").default(0),
   crawlData: jsonb("crawl_data"),
+  optimizationMode: optimizationModeEnum("optimization_mode").default("balanced"),
+  draftsGenerated: integer("drafts_generated").default(0),
+  draftsApplied: integer("drafts_applied").default(0),
+  seoImpactEstimate: text("seo_impact_estimate"),
   startedAt: timestamp("started_at"),
   completedAt: timestamp("completed_at"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -161,6 +170,32 @@ export const agentMemory = pgTable("agent_memory", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Optimization drafts table (for storing pending optimizations)
+export const drafts = pgTable("drafts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  auditId: varchar("audit_id").notNull().references(() => audits.id),
+  websiteId: varchar("website_id").notNull().references(() => websites.id),
+  issueId: varchar("issue_id").references(() => issues.id),
+  pageUrl: text("page_url").notNull(),
+  draftType: draftTypeEnum("draft_type").notNull(),
+  optimizationMode: optimizationModeEnum("optimization_mode").notNull(),
+  status: draftStatusEnum("status").default("pending"),
+  currentValue: text("current_value"),
+  proposedValueSafe: text("proposed_value_safe"),
+  proposedValueBalanced: text("proposed_value_balanced"),
+  proposedValueAggressive: text("proposed_value_aggressive"),
+  selectedProposal: optimizationModeEnum("selected_proposal"),
+  htmlDiff: text("html_diff"),
+  reasoning: text("reasoning"),
+  impactEstimate: text("impact_estimate"),
+  confidence: real("confidence").default(0),
+  metadata: jsonb("metadata"),
+  appliedAt: timestamp("applied_at"),
+  approvedAt: timestamp("approved_at"),
+  rejectedAt: timestamp("rejected_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   websites: many(websites),
@@ -176,6 +211,7 @@ export const websitesRelations = relations(websites, ({ one, many }) => ({
   issues: many(issues),
   changes: many(changes),
   agentLogs: many(agentLogs),
+  drafts: many(drafts),
 }));
 
 export const auditsRelations = relations(audits, ({ one, many }) => ({
@@ -185,6 +221,7 @@ export const auditsRelations = relations(audits, ({ one, many }) => ({
   }),
   issues: many(issues),
   agentLogs: many(agentLogs),
+  drafts: many(drafts),
 }));
 
 export const issuesRelations = relations(issues, ({ one, many }) => ({
@@ -197,6 +234,7 @@ export const issuesRelations = relations(issues, ({ one, many }) => ({
     references: [websites.id],
   }),
   changes: many(changes),
+  drafts: many(drafts),
 }));
 
 export const changesRelations = relations(changes, ({ one }) => ({
@@ -228,6 +266,21 @@ export const agentMemoryRelations = relations(agentMemory, ({ one }) => ({
   }),
 }));
 
+export const draftsRelations = relations(drafts, ({ one }) => ({
+  audit: one(audits, {
+    fields: [drafts.auditId],
+    references: [audits.id],
+  }),
+  website: one(websites, {
+    fields: [drafts.websiteId],
+    references: [websites.id],
+  }),
+  issue: one(issues, {
+    fields: [drafts.issueId],
+    references: [issues.id],
+  }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertWebsiteSchema = createInsertSchema(websites).omit({ id: true, createdAt: true, updatedAt: true, lastAuditAt: true, healthScore: true });
@@ -236,6 +289,7 @@ export const insertIssueSchema = createInsertSchema(issues).omit({ id: true, cre
 export const insertChangeSchema = createInsertSchema(changes).omit({ id: true, createdAt: true, appliedAt: true, rolledBackAt: true });
 export const insertAgentLogSchema = createInsertSchema(agentLogs).omit({ id: true, createdAt: true });
 export const insertAgentMemorySchema = createInsertSchema(agentMemory).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertDraftSchema = createInsertSchema(drafts).omit({ id: true, createdAt: true, appliedAt: true, approvedAt: true, rejectedAt: true });
 
 // Types
 export type UpsertUser = typeof users.$inferInsert;
@@ -252,6 +306,13 @@ export type InsertAgentLog = z.infer<typeof insertAgentLogSchema>;
 export type AgentLog = typeof agentLogs.$inferSelect;
 export type InsertAgentMemory = z.infer<typeof insertAgentMemorySchema>;
 export type AgentMemory = typeof agentMemory.$inferSelect;
+export type InsertDraft = z.infer<typeof insertDraftSchema>;
+export type Draft = typeof drafts.$inferSelect;
+
+// Optimization mode types
+export type OptimizationMode = "safe" | "balanced" | "aggressive";
+export type DraftStatus = "pending" | "approved" | "rejected" | "applied" | "expired";
+export type DraftType = "title" | "meta_description" | "heading" | "keyword" | "internal_link" | "content" | "image" | "html_rewrite";
 
 // API response types
 export type WebsiteWithStats = Website & {
@@ -266,4 +327,20 @@ export type AuditWithIssues = Audit & {
 
 export type IssueWithSuggestion = Issue & {
   change?: Change;
+};
+
+export type DraftWithDetails = Draft & {
+  issue?: Issue;
+  website?: Website;
+  audit?: Audit;
+};
+
+export type AuditReport = {
+  mode: OptimizationMode;
+  changesDrafted: boolean;
+  changesApplied: boolean;
+  pendingApprovals: number;
+  seoImpactEstimate: string;
+  draftsGenerated: number;
+  draftsApplied: number;
 };
