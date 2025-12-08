@@ -43,7 +43,7 @@ export default function Login() {
         title: "Erfolgreich angemeldet",
         description: "Willkommen zurück!",
       });
-      setLocation("/dashboard");
+      setLocation("/websites");
     },
     onError: (error: any) => {
       toast({

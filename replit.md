@@ -245,7 +245,27 @@ Three AI-generated fix proposals for each issue:
 - Manual approval required for high-risk changes
 - Low-risk issues can be auto-fixed (Pro only)
 
+### Email/Password Authentication
+- Dual authentication: Both Replit OIDC and local email/password supported
+- bcrypt password hashing with secure session management
+- Login and Register pages with form validation
+- Automatic session creation after registration
+
+### Audit Progress Tracking
+- Real-time progress updates during SEO audits
+- Progress bar with current step description
+- Phases tracked: Initialization, Crawling, Page Analysis, AI Improvements, Score Calculation
+- Frontend auto-refreshes every 1.5 seconds during running audits
+
+### Audit Reports
+- Comprehensive report view at `/audits/:id/report`
+- Before/After score comparison (when available)
+- Issue breakdown by severity and category
+- Top impact issues with details
+
 ### New API Endpoints (3.0)
+- `POST /api/auth/register` - Register with email/password
+- `POST /api/auth/login` - Login with email/password
 - `POST /api/issues/:id/fix` - Generate fix variants
 - `POST /api/issues/:id/confirm-fix` - Apply chosen fix variant (Pro only)
 - `GET /api/audits/:id/report` - Get detailed audit report with scores

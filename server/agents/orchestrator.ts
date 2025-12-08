@@ -8,10 +8,19 @@ import type { Audit } from "@shared/schema";
 export class AgentOrchestrator {
   private auditId: string;
   private websiteId: string;
+  private currentProgress: number = 0;
 
   constructor(auditId: string, websiteId: string) {
     this.auditId = auditId;
     this.websiteId = websiteId;
+  }
+
+  private async updateProgress(progress: number, currentStep?: string) {
+    this.currentProgress = progress;
+    await storage.updateAudit(this.auditId, { 
+      progress,
+      currentStep: currentStep || null 
+    });
   }
 
   private async log(
@@ -39,6 +48,8 @@ export class AgentOrchestrator {
         status: "running",
         startedAt: new Date(),
       });
+      
+      await this.updateProgress(5, "Initialisierung");
 
       // Phase 1: Strategy Agent plans the audit
       await this.log(
@@ -59,6 +70,8 @@ export class AgentOrchestrator {
         thought.reasoning,
         thought.action
       );
+      
+      await this.updateProgress(10, "Strategie geplant");
 
       // Phase 2: Audit Agent crawls the website
       await this.log(
@@ -67,6 +80,8 @@ export class AgentOrchestrator {
         "Beginning comprehensive crawl to discover all pages and gather SEO data.",
         "Start crawl"
       );
+      
+      await this.updateProgress(15, "Website wird gecrawlt");
 
       const crawlResults = await crawlWebsite(url, 5);
 
@@ -76,13 +91,22 @@ export class AgentOrchestrator {
         `Successfully crawled ${crawlResults.length} pages. Now analyzing each page for SEO issues.`,
         "Analyze pages"
       );
+      
+      await this.updateProgress(30, `${crawlResults.length} Seiten gefunden`);
 
       // Phase 3: Analyze each page for issues
       const allIssues: SEOIssue[] = [];
+      let analyzedPages = 0;
 
       for (const page of crawlResults) {
         const pageIssues = analyzePageSEO(page);
         allIssues.push(...pageIssues);
+        analyzedPages++;
+        
+        // Update progress during page analysis (30-50%)
+        const totalPages = crawlResults.length || 1;
+        const analysisProgress = 30 + Math.floor((analyzedPages / totalPages) * 20);
+        await this.updateProgress(analysisProgress, `Seite ${analyzedPages}/${crawlResults.length} analysiert`);
 
         if (pageIssues.length > 0) {
           await this.log(
@@ -101,12 +125,15 @@ export class AgentOrchestrator {
         "Using AI to create optimized suggestions for each identified issue.",
         "Generate improvements"
       );
+      
+      await this.updateProgress(55, `${allIssues.length} Issues gefunden, generiere Vorschläge`);
 
       // Create issues in database with AI improvements
       let criticalCount = 0;
       let highCount = 0;
       let mediumCount = 0;
       let lowCount = 0;
+      let processedIssues = 0;
 
       for (const issue of allIssues) {
         // Get page context for AI improvement
@@ -139,14 +166,24 @@ export class AgentOrchestrator {
           case "medium": mediumCount++; break;
           case "low": lowCount++; break;
         }
+        
+        processedIssues++;
+        // Update progress during AI improvement generation (55-85%)
+        const totalIssuesCount = allIssues.length || 1;
+        const aiProgress = 55 + Math.floor((processedIssues / totalIssuesCount) * 30);
+        await this.updateProgress(aiProgress, `Issue ${processedIssues}/${allIssues.length} verarbeitet`);
       }
 
       await this.log(
         "content",
-        `Generated AI improvements for all ${allIssues.length} issues`,
+        allIssues.length > 0 
+          ? `Generated AI improvements for all ${allIssues.length} issues`
+          : "No issues found - website is well optimized!",
         "AI analysis complete. Each issue now has optimized suggestions based on page context.",
         "Improvements ready"
       );
+      
+      await this.updateProgress(90, allIssues.length > 0 ? "KI-Analyse abgeschlossen" : "Keine Issues gefunden");
 
       // Phase 5: Ranking Agent calculates scores
       const healthScore = calculateHealthScore(allIssues);
@@ -157,6 +194,8 @@ export class AgentOrchestrator {
         `Based on ${allIssues.length} issues found. Score reflects overall SEO health of the website.`,
         "Score calculated"
       );
+
+      await this.updateProgress(95, "Score berechnet");
 
       // Phase 6: Fix Agent identifies auto-fixable issues
       const autoFixable = allIssues.filter(i => i.autoFixable && i.riskLevel === "low");
@@ -172,6 +211,8 @@ export class AgentOrchestrator {
       const updatedAudit = await storage.updateAudit(this.auditId, {
         status: "completed",
         completedAt: new Date(),
+        progress: 100,
+        currentStep: "Audit abgeschlossen",
         totalIssues: allIssues.length,
         criticalCount,
         highCount,

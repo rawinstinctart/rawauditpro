@@ -52,7 +52,7 @@ export default function Register() {
         title: "Konto erstellt",
         description: "Du bist jetzt angemeldet!",
       });
-      setLocation("/dashboard");
+      setLocation("/websites");
     },
     onError: (error: any) => {
       toast({

@@ -74,6 +74,7 @@ export const audits = pgTable("audits", {
   websiteId: varchar("website_id").notNull().references(() => websites.id),
   status: auditStatusEnum("status").default("queued"),
   progress: integer("progress").default(0),
+  currentStep: varchar("current_step"),
   totalIssues: integer("total_issues").default(0),
   criticalCount: integer("critical_count").default(0),
   highCount: integer("high_count").default(0),

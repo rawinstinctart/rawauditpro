@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { HealthScore } from "@/components/HealthScore";
 import { SeverityBadge } from "@/components/SeverityBadge";
 import { DiffViewer } from "@/components/DiffViewer";
@@ -52,6 +53,10 @@ export default function AuditDetail() {
 
   const { data: audit, isLoading: auditLoading } = useQuery<Audit & { website?: Website }>({
     queryKey: ["/api/audits", id],
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      return data?.status === "running" || data?.status === "queued" ? 1500 : false;
+    },
   });
 
   const { data: issues, isLoading: issuesLoading } = useQuery<Issue[]>({
@@ -216,6 +221,25 @@ export default function AuditDetail() {
           )}
         </div>
       </div>
+
+      {(audit.status === "running" || audit.status === "queued") && (
+        <Card data-testid="card-progress">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                <span className="text-sm font-medium">
+                  {audit.currentStep || "Audit wird vorbereitet..."}
+                </span>
+              </div>
+              <span className="text-sm text-muted-foreground">
+                {audit.progress || 0}%
+              </span>
+            </div>
+            <Progress value={audit.progress || 0} className="h-2" data-testid="progress-audit" />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
