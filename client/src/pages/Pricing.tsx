@@ -1,259 +1,81 @@
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Check, X, Zap, Shield, BarChart3, AlertCircle } from "lucide-react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
-
-interface Subscription {
-  tier: string;
-  status: string;
-  currentPeriodEnd: string | null;
-  auditCount: number;
-  auditLimit: number;
-}
-
-interface StripeConfig {
-  isConfigured: boolean;
-  message: string | null;
-}
-
-const PLANS = {
-  free: {
-    name: "Free",
-    price: "0",
-    period: "Monat",
-    description: "Perfekt zum Ausprobieren",
-    features: [
-      { text: "5 Audits pro Monat", included: true },
-      { text: "Basis SEO-Analyse", included: true },
-      { text: "Issue-Liste mit Prioritäten", included: true },
-      { text: "Auto-Fix Funktion", included: false },
-      { text: "Detaillierte Reports", included: false },
-      { text: "Score-Tracking", included: false },
-    ],
-  },
-  pro: {
-    name: "Pro",
-    price: "19",
-    period: "Monat",
-    description: "Für professionelle SEO-Optimierung",
-    features: [
-      { text: "Unbegrenzte Audits", included: true },
-      { text: "Erweiterte SEO-Analyse", included: true },
-      { text: "Issue-Liste mit Prioritäten", included: true },
-      { text: "KI-gestützte Auto-Fixes", included: true },
-      { text: "Detaillierte PDF-Reports", included: true },
-      { text: "Score-Tracking vorher/nachher", included: true },
-    ],
-  },
-};
+import React, { useState } from "react";
+import { useUser } from "../hooks/useUser";
 
 export default function Pricing() {
-  const { user } = useAuth();
-  const { toast } = useToast();
+  const { user } = useUser();
+  const [loading, setLoading] = useState(false);
 
-  const { data: subscription } = useQuery<Subscription>({
-    queryKey: ["/api/subscription"],
-    enabled: !!user,
-  });
+  async function handleCheckout() {
+    setLoading(true);
 
-  const { data: stripeConfig } = useQuery<StripeConfig>({
-    queryKey: ["/api/stripe/config"],
-  });
-
-  const checkoutMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/stripe/create-checkout-session", { plan: "pro" });
-      return response.json();
-    },
-    onSuccess: (data) => {
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Fehler",
-        description: error?.message || "Checkout konnte nicht gestartet werden. Bitte Stripe-Produkt konfigurieren.",
-        variant: "destructive",
+    try {
+      const res = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          priceId: "price_1ScBAG2Mj9flkmq6cZkILFO", // <- hier deine echte Price ID
+          successUrl: window.location.origin + "/pricing?success=1",
+          cancelUrl: window.location.origin + "/pricing?canceled=1",
+        }),
       });
-    },
-  });
 
-  const portalMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/stripe/customer-portal");
-      return response.json();
-    },
-    onSuccess: (data) => {
+      const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
       }
-    },
-  });
+    } catch (err) {
+      console.error("Checkout error:", err);
+    }
 
-  const currentTier = subscription?.tier || "free";
-  const isPro = currentTier === "pro";
+    setLoading(false);
+  }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4">Wähle deinen Plan</h1>
-        <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          Starte kostenlos und upgrade jederzeit auf Pro für erweiterte Funktionen
-          und KI-gestützte Auto-Fixes.
-        </p>
+    <div className="p-8 max-w-3xl mx-auto">
+
+      <h1 className="text-4xl font-bold mb-10 text-center">
+        Wähle deinen Plan
+      </h1>
+
+      {/* FREE PLAN */}
+      <div className="bg-gray-800 p-6 rounded-xl shadow-xl mb-8">
+        <h2 className="text-2xl font-bold mb-2">Free</h2>
+        <p className="text-gray-400 mb-4">Ideal für Einsteiger.</p>
+
+        <ul className="mb-4 space-y-1 text-gray-300">
+          <li>✔ 5 Audits pro Monat</li>
+          <li>✔ Basis KI-Analyse</li>
+          <li>✘ Keine Auto-Fixes</li>
+          <li>✘ Kein Deep Scan</li>
+        </ul>
+
+        <p className="text-xl font-bold">0 € / Monat</p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-        <Card className={currentTier === "free" ? "border-primary" : ""}>
-          <CardHeader>
-            <div className="flex items-center justify-between gap-4">
-              <CardTitle className="text-2xl">{PLANS.free.name}</CardTitle>
-              {currentTier === "free" && (
-                <Badge variant="secondary">Aktueller Plan</Badge>
-              )}
-            </div>
-            <CardDescription>{PLANS.free.description}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-6">
-              <span className="text-4xl font-bold">{PLANS.free.price}</span>
-              <span className="text-muted-foreground ml-1">/{PLANS.free.period}</span>
-            </div>
-            <ul className="space-y-3">
-              {PLANS.free.features.map((feature, i) => (
-                <li key={i} className="flex items-center gap-3">
-                  {feature.included ? (
-                    <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                  ) : (
-                    <X className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                  )}
-                  <span className={feature.included ? "" : "text-muted-foreground"}>
-                    {feature.text}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-          <CardFooter>
-            <Button 
-              variant="outline" 
-              className="w-full" 
-              disabled
-              data-testid="button-select-free"
-            >
-              {currentTier === "free" ? "Aktueller Plan" : "Kostenlos"}
-            </Button>
-          </CardFooter>
-        </Card>
+      {/* PRO PLAN */}
+      <div className="bg-gradient-to-br from-purple-600 to-blue-600 p-6 rounded-xl shadow-xl text-white">
+        <h2 className="text-2xl font-bold mb-2">Pro</h2>
+        <p className="opacity-90 mb-4">Für Power-User & Profis.</p>
 
-        <Card className={isPro ? "border-primary" : "border-2 border-primary/50"}>
-          <CardHeader>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-2xl">{PLANS.pro.name}</CardTitle>
-                <Zap className="h-5 w-5 text-yellow-500" />
-              </div>
-              {isPro ? (
-                <Badge>Aktueller Plan</Badge>
-              ) : (
-                <Badge variant="secondary">Empfohlen</Badge>
-              )}
-            </div>
-            <CardDescription>{PLANS.pro.description}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-6">
-              <span className="text-4xl font-bold">{PLANS.pro.price}</span>
-              <span className="text-muted-foreground ml-1">/{PLANS.pro.period}</span>
-            </div>
-            <ul className="space-y-3">
-              {PLANS.pro.features.map((feature, i) => (
-                <li key={i} className="flex items-center gap-3">
-                  <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                  <span>{feature.text}</span>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-2">
-            {isPro ? (
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => portalMutation.mutate()}
-                disabled={portalMutation.isPending}
-                data-testid="button-manage-subscription"
-              >
-                Abo verwalten
-              </Button>
-            ) : stripeConfig?.isConfigured === false ? (
-              <Alert className="w-full">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="text-sm">
-                  Zahlungen werden gerade eingerichtet. Bitte später erneut versuchen.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <Button 
-                className="w-full"
-                onClick={() => checkoutMutation.mutate()}
-                disabled={checkoutMutation.isPending}
-                data-testid="button-upgrade-pro"
-              >
-                {checkoutMutation.isPending ? "Wird geladen..." : "Upgrade auf Pro"}
-              </Button>
-            )}
-          </CardFooter>
-        </Card>
+        <ul className="mb-4 space-y-1">
+          <li>✔ 100 Audits pro Monat</li>
+          <li>✔ KI-Auto-Fixes</li>
+          <li>✔ Deep SEO-Analyse</li>
+          <li>✔ Priorisierte Crawls</li>
+        </ul>
+
+        <p className="text-xl font-bold mb-4">29,99 € / Monat</p>
+
+        <button
+          onClick={handleCheckout}
+          disabled={loading}
+          className="bg-black/40 backdrop-blur px-6 py-3 rounded-lg hover:bg-black/60 transition font-semibold"
+        >
+          {loading ? "Weiterleitung..." : "Upgrade starten"}
+        </button>
       </div>
 
-      <div className="mt-16 max-w-4xl mx-auto">
-        <h2 className="text-2xl font-bold text-center mb-8">Warum Pro?</h2>
-        <div className="grid md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
-              <Zap className="h-8 w-8 text-yellow-500 mb-2" />
-              <CardTitle className="text-lg">KI Auto-Fix</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-sm">
-                Lass unsere KI SEO-Probleme automatisch beheben. Wähle zwischen 
-                sicheren, empfohlenen oder aggressiven Fixes.
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <BarChart3 className="h-8 w-8 text-blue-500 mb-2" />
-              <CardTitle className="text-lg">Score-Tracking</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-sm">
-                Verfolge deinen SEO-Score vor und nach Optimierungen. 
-                Sieh den direkten Impact deiner Änderungen.
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <Shield className="h-8 w-8 text-green-500 mb-2" />
-              <CardTitle className="text-lg">Risk-Kontrolle</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-sm">
-                Jeder Fix zeigt dir das Risiko-Level und erklärt mögliche 
-                Auswirkungen, bevor du bestätigst.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
     </div>
   );
 }
