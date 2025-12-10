@@ -20,12 +20,15 @@ import {
   Image as ImageIcon,
   Zap,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import type { Audit, Issue, Website } from "@shared/schema";
 import { DraftReview, DraftStats } from "@/components/DraftReview";
 import { ModeBadge } from "@/components/OptimizationModeSelector";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
+import { useState, useCallback } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ImageStats {
   totalImages: number;
@@ -280,6 +283,8 @@ function ImageOptimizationCard({ stats }: { stats: ImageStats }) {
 
 export default function AuditReport() {
   const { id } = useParams<{ id: string }>();
+  const { toast } = useToast();
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data: report, isLoading: reportLoading } = useQuery<ReportData>({
     queryKey: ["/api/audits", id, "report"],
@@ -291,6 +296,128 @@ export default function AuditReport() {
   });
 
   const isLoading = reportLoading || (!report && auditLoading);
+
+  const handleExportPDF = useCallback(() => {
+    if (!report && !auditFallback) return;
+    
+    setIsExporting(true);
+    
+    try {
+      const auditData = report?.audit || auditFallback!;
+      const issues = report?.allIssues || [];
+      const score = report?.scoreAfter ?? auditData.score ?? 0;
+      
+      const criticalCount = issues.filter(i => i.severity === 'critical').length;
+      const highCount = issues.filter(i => i.severity === 'high').length;
+      const mediumCount = issues.filter(i => i.severity === 'medium').length;
+      const lowCount = issues.filter(i => i.severity === 'low').length;
+      
+      const topRecommendations = issues
+        .filter(i => i.severity === 'critical' || i.severity === 'high')
+        .slice(0, 5)
+        .map(i => `- ${i.title}: ${i.description || 'Optimierung empfohlen'}`)
+        .join('\n');
+
+      const pdfContent = `
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>SEO-Audit Report - ${auditData.website?.name || auditData.website?.url || 'Website'}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; color: #1a1a1a; }
+    h1 { color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
+    h2 { color: #374151; margin-top: 30px; }
+    .meta { background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0; }
+    .meta p { margin: 5px 0; }
+    .score { font-size: 48px; font-weight: bold; color: ${score >= 70 ? '#16a34a' : score >= 40 ? '#ca8a04' : '#dc2626'}; text-align: center; padding: 20px; }
+    .score-label { text-align: center; color: #6b7280; margin-bottom: 20px; }
+    .breakdown { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 20px 0; }
+    .breakdown-item { text-align: center; padding: 15px; border-radius: 8px; }
+    .critical { background: #fee2e2; color: #b91c1c; }
+    .high { background: #ffedd5; color: #c2410c; }
+    .medium { background: #fef9c3; color: #a16207; }
+    .low { background: #dbeafe; color: #1d4ed8; }
+    .recommendations { background: #f0fdf4; padding: 20px; border-radius: 8px; margin: 20px 0; }
+    .recommendations h3 { color: #166534; margin-top: 0; }
+    .recommendations ul { margin: 10px 0; padding-left: 20px; }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px; text-align: center; }
+    @media print { body { padding: 20px; } }
+  </style>
+</head>
+<body>
+  <h1>SEO-Audit Report</h1>
+  
+  <div class="meta">
+    <p><strong>Website:</strong> ${auditData.website?.name || 'N/A'}</p>
+    <p><strong>URL:</strong> ${auditData.website?.url || 'N/A'}</p>
+    <p><strong>Datum:</strong> ${auditData.createdAt ? format(new Date(auditData.createdAt), "PPP 'um' HH:mm 'Uhr'", { locale: de }) : 'N/A'}</p>
+    <p><strong>Seiten gescannt:</strong> ${auditData.pagesScanned || 0}</p>
+  </div>
+  
+  <h2>Gesundheitswert</h2>
+  <div class="score">${score}/100</div>
+  <div class="score-label">${score >= 70 ? 'Gut' : score >= 40 ? 'Verbesserungsbedarf' : 'Kritisch'}</div>
+  
+  <h2>Issue-Verteilung</h2>
+  <div class="breakdown">
+    <div class="breakdown-item critical">
+      <div style="font-size: 24px; font-weight: bold;">${criticalCount}</div>
+      <div>Kritisch</div>
+    </div>
+    <div class="breakdown-item high">
+      <div style="font-size: 24px; font-weight: bold;">${highCount}</div>
+      <div>Hoch</div>
+    </div>
+    <div class="breakdown-item medium">
+      <div style="font-size: 24px; font-weight: bold;">${mediumCount}</div>
+      <div>Mittel</div>
+    </div>
+    <div class="breakdown-item low">
+      <div style="font-size: 24px; font-weight: bold;">${lowCount}</div>
+      <div>Niedrig</div>
+    </div>
+  </div>
+  
+  <div class="recommendations">
+    <h3>Top-Empfehlungen</h3>
+    <ul>
+      ${issues.filter(i => i.severity === 'critical' || i.severity === 'high').slice(0, 5).map(i => `<li><strong>${i.title}</strong>: ${i.description || 'Optimierung empfohlen'}</li>`).join('')}
+      ${issues.filter(i => i.severity === 'critical' || i.severity === 'high').length === 0 ? '<li>Keine kritischen oder hohen Issues gefunden.</li>' : ''}
+    </ul>
+  </div>
+  
+  <div class="footer">
+    <p>Generiert von SiteScout AI | ${format(new Date(), "PPP", { locale: de })}</p>
+  </div>
+</body>
+</html>
+      `;
+
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(pdfContent);
+        printWindow.document.close();
+        printWindow.onload = () => {
+          printWindow.print();
+        };
+        toast({
+          title: "PDF wird generiert",
+          description: "Der Report wird in einem neuen Fenster ge\u00F6ffnet. Nutze die Druckfunktion zum Speichern als PDF.",
+        });
+      } else {
+        throw new Error("Popup blockiert");
+      }
+    } catch (error) {
+      toast({
+        title: "Export fehlgeschlagen",
+        description: "Der PDF-Export konnte nicht gestartet werden. Bitte erlaube Popups f\u00FCr diese Seite.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [report, auditFallback, toast]);
 
   if (isLoading) {
     return (
@@ -306,15 +433,49 @@ export default function AuditReport() {
     );
   }
 
+  const audit = report?.audit || auditFallback;
+  const isNotFinalized = audit && audit.status !== "finalized";
+  
+  if (isNotFinalized) {
+    const statusLabels: Record<string, string> = {
+      queued: "In Warteschlange",
+      crawling: "Website wird gecrawlt",
+      analyzing: "Daten werden analysiert",
+      scoring: "Score wird berechnet",
+      failed: "Fehlgeschlagen",
+    };
+    const statusLabel = statusLabels[audit.status || ""] || "In Bearbeitung";
+    
+    return (
+      <div className="p-6">
+        <Card>
+          <CardContent className="p-8 text-center">
+            <Clock className="h-12 w-12 text-blue-500 mx-auto mb-4 animate-pulse" />
+            <h3 className="text-lg font-medium mb-2">Audit noch nicht abgeschlossen</h3>
+            <p className="text-muted-foreground mb-2">
+              Status: <strong>{statusLabel}</strong>
+            </p>
+            <p className="text-muted-foreground mb-4">
+              Der Report ist verfügbar, sobald der Audit abgeschlossen ist.
+            </p>
+            <Button asChild>
+              <Link href={`/audits/${id}`}>Zum Audit-Status</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!report && !auditFallback) {
     return (
       <div className="p-6">
         <Card>
           <CardContent className="p-8 text-center">
             <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">Noch keine Daten verfügbar</h3>
+            <h3 className="text-lg font-medium mb-2">Keine Daten verfügbar</h3>
             <p className="text-muted-foreground mb-4">
-              Der Audit läuft noch oder es wurden noch keine Ergebnisse generiert.
+              F{"ü"}r diesen Audit sind keine Daten vorhanden.
             </p>
             <Button asChild>
               <Link href="/audits">Zurück zu Audits</Link>
@@ -325,10 +486,9 @@ export default function AuditReport() {
     );
   }
 
-  const audit = report?.audit || auditFallback!;
-  const scoreBefore = report?.scoreBefore ?? (audit.scoreBefore || 0);
-  const scoreAfter = report?.scoreAfter ?? (audit.scoreAfter || audit.score || 0);
-  const totalIssues = report?.totalIssues ?? (audit.totalIssues || 0);
+  const scoreBefore = report?.scoreBefore ?? (audit!.scoreBefore || 0);
+  const scoreAfter = report?.scoreAfter ?? (audit!.scoreAfter || audit!.score || 0);
+  const totalIssues = report?.totalIssues ?? (audit!.totalIssues || 0);
   const fixedCount = report?.fixedCount ?? 0;
   const pendingCount = report?.pendingCount ?? totalIssues;
   const topIssues = report?.topIssues ?? [];
@@ -349,12 +509,12 @@ export default function AuditReport() {
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <FileText className="h-6 w-6 text-primary" />
               SEO-Audit Report
-              {audit.optimizationMode && (
-                <ModeBadge mode={audit.optimizationMode as "safe" | "balanced" | "aggressive"} />
+              {audit!.optimizationMode && (
+                <ModeBadge mode={audit!.optimizationMode as "safe" | "balanced" | "aggressive"} />
               )}
             </h1>
             <p className="text-muted-foreground">
-              {audit.website?.name || audit.website?.url} - {format(new Date(audit.createdAt!), "PPP", { locale: de })}
+              {audit!.website?.name || audit!.website?.url} - {format(new Date(audit!.createdAt!), "PPP", { locale: de })}
             </p>
           </div>
         </div>
@@ -364,65 +524,74 @@ export default function AuditReport() {
               Details anzeigen
             </Link>
           </Button>
-          <Button variant="outline" data-testid="button-download-report">
-            <Download className="h-4 w-4 mr-2" />
+          <Button 
+            variant="outline" 
+            data-testid="button-download-report"
+            onClick={handleExportPDF}
+            disabled={isExporting}
+          >
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
             PDF Export
           </Button>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <BarChart3 className="h-5 w-5 text-primary" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               </div>
-              <div>
-                <div className="text-2xl font-bold">{totalIssues}</div>
-                <div className="text-sm text-muted-foreground">Gefundene Issues</div>
+              <div className="min-w-0">
+                <div className="text-xl sm:text-2xl font-bold">{totalIssues}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground truncate">Gefundene Issues</div>
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                <CheckCircle className="h-5 w-5 text-green-600" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-green-500/10 flex items-center justify-center flex-shrink-0">
+                <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
               </div>
-              <div>
-                <div className="text-2xl font-bold">{fixedCount}</div>
-                <div className="text-sm text-muted-foreground">Behoben ({fixedPercent}%)</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-yellow-500/10 flex items-center justify-center">
-                <Clock className="h-5 w-5 text-yellow-600" />
-              </div>
-              <div>
-                <div className="text-2xl font-bold">{pendingCount}</div>
-                <div className="text-sm text-muted-foreground">Ausstehend</div>
+              <div className="min-w-0">
+                <div className="text-xl sm:text-2xl font-bold">{fixedCount}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground truncate">Behoben ({fixedPercent}%)</div>
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-primary" />
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
+                <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
               </div>
-              <div>
-                <div className="text-2xl font-bold">{audit.pagesScanned || 0}</div>
-                <div className="text-sm text-muted-foreground">Seiten gescannt</div>
+              <div className="min-w-0">
+                <div className="text-xl sm:text-2xl font-bold">{pendingCount}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Ausstehend</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+              <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xl sm:text-2xl font-bold">{audit!.pagesScanned || 0}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground truncate">Seiten gescannt</div>
               </div>
             </div>
           </CardContent>
@@ -437,7 +606,7 @@ export default function AuditReport() {
 
       <DraftStats auditId={id!} />
 
-      <DraftReview auditId={id!} websiteId={audit.websiteId} isPro={false} />
+      <DraftReview auditId={id!} websiteId={audit!.websiteId} isPro={false} />
 
       <TopIssuesList issues={topIssues} />
 
@@ -447,11 +616,11 @@ export default function AuditReport() {
         </CardHeader>
         <CardContent className="prose dark:prose-invert max-w-none">
           <p>
-            Der SEO-Audit für <strong>{audit.website?.name || audit.website?.url}</strong> wurde 
-            am {format(new Date(audit.createdAt!), "PPP 'um' HH:mm 'Uhr'", { locale: de })} abgeschlossen.
+            Der SEO-Audit für <strong>{audit!.website?.name || audit!.website?.url}</strong> wurde 
+            am {format(new Date(audit!.createdAt!), "PPP 'um' HH:mm 'Uhr'", { locale: de })} abgeschlossen.
           </p>
           <p>
-            Insgesamt wurden <strong>{totalIssues} Issues</strong> auf {audit.pagesScanned || 0} Seiten identifiziert.
+            Insgesamt wurden <strong>{totalIssues} Issues</strong> auf {audit!.pagesScanned || 0} Seiten identifiziert.
             Davon wurden bereits <strong>{fixedCount} ({fixedPercent}%)</strong> behoben, 
             während <strong>{pendingCount}</strong> noch auf Bearbeitung warten.
           </p>

@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { HealthScore } from "@/components/HealthScore";
 import { SeverityBadge } from "@/components/SeverityBadge";
 import { DiffViewer } from "@/components/DiffViewer";
-import { AgentLogPanel } from "@/components/AgentLogPanel";
+import { AgentLogPanel, AuditLifecycleTimeline } from "@/components/AgentLogPanel";
 import { IssueRow } from "@/components/IssueRow";
 import {
   Table,
@@ -55,7 +55,8 @@ export default function AuditDetail() {
     queryKey: ["/api/audits", id],
     refetchInterval: (query) => {
       const data = query.state.data;
-      return data?.status === "running" || data?.status === "queued" ? 1500 : false;
+      const isRunning = data?.status === "queued" || data?.status === "crawling" || data?.status === "analyzing" || data?.status === "scoring";
+      return isRunning ? 1500 : false;
     },
   });
 
@@ -67,7 +68,7 @@ export default function AuditDetail() {
   const { data: agentLogs } = useQuery<AgentLog[]>({
     queryKey: ["/api/audits", id, "logs"],
     enabled: !!id,
-    refetchInterval: audit?.status === "running" ? 2000 : false,
+    refetchInterval: (audit?.status === "crawling" || audit?.status === "analyzing" || audit?.status === "scoring") ? 2000 : false,
   });
 
   const approveMutation = useMutation({
@@ -136,10 +137,11 @@ export default function AuditDetail() {
   });
 
   const statusConfig = {
-    pending: { label: "Ausstehend", icon: Clock, className: "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20", animated: false },
     queued: { label: "In Warteschlange", icon: Clock, className: "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20", animated: false },
-    running: { label: "Läuft", icon: Loader2, className: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20", animated: true },
-    completed: { label: "Abgeschlossen", icon: CheckCircle, className: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20", animated: false },
+    crawling: { label: "Crawlt Website", icon: Loader2, className: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20", animated: true },
+    analyzing: { label: "Analysiert", icon: Loader2, className: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20", animated: true },
+    scoring: { label: "Berechnet Score", icon: Loader2, className: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20", animated: true },
+    finalized: { label: "Abgeschlossen", icon: CheckCircle, className: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20", animated: false },
     failed: { label: "Fehlgeschlagen", icon: XCircle, className: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20", animated: false },
   };
 
@@ -198,7 +200,7 @@ export default function AuditDetail() {
           <p className="text-muted-foreground text-sm">{audit.website?.url}</p>
         </div>
         <div className="flex items-center gap-2">
-          {audit.status === "completed" && (
+          {audit.status === "finalized" && (
             <Button variant="outline" asChild data-testid="button-view-report">
               <Link href={`/audits/${id}/report`}>
                 Report anzeigen
@@ -222,7 +224,7 @@ export default function AuditDetail() {
         </div>
       </div>
 
-      {(audit.status === "running" || audit.status === "queued") && (
+      {(audit.status === "queued" || audit.status === "crawling" || audit.status === "analyzing" || audit.status === "scoring") && (
         <Card data-testid="card-progress">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
@@ -241,11 +243,11 @@ export default function AuditDetail() {
         </Card>
       )}
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="p-4 flex items-center gap-4">
+          <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
             <HealthScore score={audit.score || 0} size="md" showLabel={false} />
-            <div>
+            <div className="min-w-0">
               <p className="text-sm text-muted-foreground">Gesundheitswert</p>
               <p className="text-xl font-bold">{audit.score || 0}/100</p>
             </div>
@@ -255,7 +257,7 @@ export default function AuditDetail() {
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground mb-1">Probleme gesamt</p>
             <p className="text-2xl font-bold">{audit.totalIssues || 0}</p>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
               {(audit.criticalCount ?? 0) > 0 && <SeverityBadge severity="critical" showIcon={false} />}
               {(audit.highCount ?? 0) > 0 && <SeverityBadge severity="high" showIcon={false} />}
             </div>
@@ -269,7 +271,7 @@ export default function AuditDetail() {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground mb-1">Ausstehende Änderungen</p>
+            <p className="text-sm text-muted-foreground mb-1 truncate">Ausstehende {"Ä"}nderungen</p>
             <p className="text-2xl font-bold">{pendingIssues.length}</p>
           </CardContent>
         </Card>
@@ -278,11 +280,13 @@ export default function AuditDetail() {
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <Tabs defaultValue="all">
-            <TabsList>
-              <TabsTrigger value="all">Alle Probleme ({issues?.length || 0})</TabsTrigger>
-              <TabsTrigger value="pending">Ausstehend ({pendingIssues.length})</TabsTrigger>
-              <TabsTrigger value="critical">Kritisch ({audit.criticalCount || 0})</TabsTrigger>
-            </TabsList>
+            <div className="overflow-x-auto -mx-1 px-1">
+              <TabsList className="w-max min-w-full sm:w-auto">
+                <TabsTrigger value="all" className="text-xs sm:text-sm">Alle ({issues?.length || 0})</TabsTrigger>
+                <TabsTrigger value="pending" className="text-xs sm:text-sm">Ausstehend ({pendingIssues.length})</TabsTrigger>
+                <TabsTrigger value="critical" className="text-xs sm:text-sm">Kritisch ({audit.criticalCount || 0})</TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent value="all" className="mt-4">
               <IssueTable
@@ -314,10 +318,11 @@ export default function AuditDetail() {
           </Tabs>
         </div>
 
-        <div>
+        <div className="space-y-4">
+          <AuditLifecycleTimeline audit={audit} />
           <AgentLogPanel
             logs={agentLogs || []}
-            maxHeight="h-[600px]"
+            maxHeight="h-[400px]"
           />
         </div>
       </div>

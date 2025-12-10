@@ -49,9 +49,9 @@ export class AgentOrchestrator {
 
   async runAudit(url: string): Promise<Audit> {
     try {
-      // Update audit status to running
+      // Phase 0: Set status to CRAWLING (start of active work)
       await storage.updateAudit(this.auditId, {
-        status: "running",
+        status: "crawling",
         startedAt: new Date(),
       });
       
@@ -164,6 +164,9 @@ export class AgentOrchestrator {
       
       await this.updateProgress(50, "Bildanalyse abgeschlossen");
 
+      // Transition to ANALYZING status
+      await storage.updateAudit(this.auditId, { status: "analyzing" });
+
       // Phase 4: Content Agent generates AI improvements
       await this.log(
         "content",
@@ -236,6 +239,9 @@ export class AgentOrchestrator {
       
       await this.updateProgress(90, allIssues.length > 0 ? "KI-Analyse abgeschlossen" : "Keine Issues gefunden");
 
+      // Transition to SCORING status
+      await storage.updateAudit(this.auditId, { status: "scoring" });
+
       // Phase 5: Ranking Agent calculates scores
       const healthScore = calculateHealthScore(allIssues);
 
@@ -265,8 +271,9 @@ export class AgentOrchestrator {
         highCount
       );
 
+      // FINALIZE audit - this makes report and PDF available
       const updatedAudit = await storage.updateAudit(this.auditId, {
-        status: "completed",
+        status: "finalized",
         completedAt: new Date(),
         progress: 100,
         currentStep: "Audit abgeschlossen",
