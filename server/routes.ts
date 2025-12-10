@@ -209,6 +209,33 @@ export async function registerRoutes(server: Server, app: Express) {
     }
   });
 
+  app.get("/api/audits/:id", isAuthenticated, async (req, res) => {
+    try {
+      const audit = await storage.getAudit(req.params.id);
+      if (!audit) {
+        return res.status(404).json({ message: "Audit nicht gefunden" });
+      }
+      res.json(audit);
+    } catch (err) {
+      console.error("GET /api/audits/:id error:", err);
+      res.status(500).json({ message: "Internal error" });
+    }
+  });
+
+  app.get("/api/audits/:id/report", isAuthenticated, async (req, res) => {
+    try {
+      const audit = await storage.getAudit(req.params.id);
+      if (!audit) {
+        return res.status(404).json({ message: "Audit nicht gefunden" });
+      }
+      const issues = await storage.getIssuesByAudit(audit.id);
+      res.json({ audit, issues });
+    } catch (err) {
+      console.error("GET /api/audits/:id/report error:", err);
+      res.status(500).json({ message: "Internal error" });
+    }
+  });
+
   app.post(
     "/api/audits/:id/auto-fix",
     isAuthenticated,
