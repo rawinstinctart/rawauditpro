@@ -228,8 +228,29 @@ export async function registerRoutes(server: Server, app: Express) {
       if (!audit) {
         return res.status(404).json({ message: "Audit nicht gefunden" });
       }
-      const issues = await storage.getIssuesByAudit(audit.id);
-      res.json({ audit, issues });
+      
+      const website = await storage.getWebsite(audit.websiteId);
+      const issues = await storage.getIssues(audit.id);
+      
+      const fixedCount = issues.filter(i => i.status === 'fixed' || i.status === 'auto_fixed').length;
+      const pendingCount = issues.filter(i => i.status === 'pending' || i.status === 'approved').length;
+      const topIssues = issues
+        .filter(i => i.severity === 'critical' || i.severity === 'high')
+        .slice(0, 5);
+      
+      const report = {
+        audit: { ...audit, website },
+        scoreBefore: audit.scoreBefore || 0,
+        scoreAfter: audit.scoreAfter || audit.score || 0,
+        totalIssues: issues.length,
+        fixedCount,
+        pendingCount,
+        topIssues,
+        allIssues: issues,
+        imageStats: null,
+      };
+      
+      res.json(report);
     } catch (err) {
       console.error("GET /api/audits/:id/report error:", err);
       res.status(500).json({ message: "Internal error" });
