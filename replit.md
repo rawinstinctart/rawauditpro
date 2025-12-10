@@ -230,8 +230,13 @@ Preferred communication style: Simple, everyday language.
 ## SiteScout 3.0 Features
 
 ### Subscription Plans
-- **Free Plan**: 5 audits/month, basic SEO analysis, no auto-fix
-- **Pro Plan**: Unlimited audits, AI-powered auto-fixes, detailed reports, score tracking
+- **Free Plan**: 1 audit per 24 hours, basic SEO analysis, no auto-fix
+- **Pro Plan**: 100 audits/month, AI-powered auto-fixes, detailed reports, score tracking
+
+### Audit Limits
+- Free users: lastFreeAuditAt timestamp tracks 24h window between audits
+- PRO users: Monthly limit of 100 audits counted via getAllUserAudits (includes soft-deleted websites)
+- DEV_MODE=true or OWNER_EMAIL match bypasses all limits
 
 ### Fix Variant System
 Three AI-generated fix proposals for each issue:
