@@ -281,9 +281,16 @@ function ImageOptimizationCard({ stats }: { stats: ImageStats }) {
 export default function AuditReport() {
   const { id } = useParams<{ id: string }>();
 
-  const { data: report, isLoading, error } = useQuery<ReportData>({
+  const { data: report, isLoading: reportLoading } = useQuery<ReportData>({
     queryKey: ["/api/audits", id, "report"],
   });
+
+  const { data: auditFallback, isLoading: auditLoading } = useQuery<Audit & { website?: Website }>({
+    queryKey: ["/api/audits", id],
+    enabled: !report && !reportLoading,
+  });
+
+  const isLoading = reportLoading || (!report && auditLoading);
 
   if (isLoading) {
     return (
@@ -299,15 +306,15 @@ export default function AuditReport() {
     );
   }
 
-  if (error || !report) {
+  if (!report && !auditFallback) {
     return (
       <div className="p-6">
         <Card>
           <CardContent className="p-8 text-center">
             <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">Report nicht gefunden</h3>
+            <h3 className="text-lg font-medium mb-2">Noch keine Daten verfügbar</h3>
             <p className="text-muted-foreground mb-4">
-              Der angeforderte Audit-Report konnte nicht geladen werden.
+              Der Audit läuft noch oder es wurden noch keine Ergebnisse generiert.
             </p>
             <Button asChild>
               <Link href="/audits">Zurück zu Audits</Link>
@@ -318,7 +325,15 @@ export default function AuditReport() {
     );
   }
 
-  const { audit, scoreBefore, scoreAfter, totalIssues, fixedCount, pendingCount, topIssues, allIssues, imageStats } = report;
+  const audit = report?.audit || auditFallback!;
+  const scoreBefore = report?.scoreBefore ?? (audit.scoreBefore || 0);
+  const scoreAfter = report?.scoreAfter ?? (audit.scoreAfter || audit.score || 0);
+  const totalIssues = report?.totalIssues ?? (audit.totalIssues || 0);
+  const fixedCount = report?.fixedCount ?? 0;
+  const pendingCount = report?.pendingCount ?? totalIssues;
+  const topIssues = report?.topIssues ?? [];
+  const allIssues = report?.allIssues ?? [];
+  const imageStats = report?.imageStats ?? null;
   const fixedPercent = totalIssues > 0 ? Math.round((fixedCount / totalIssues) * 100) : 0;
 
   return (

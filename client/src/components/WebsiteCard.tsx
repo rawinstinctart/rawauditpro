@@ -86,23 +86,27 @@ export function WebsiteCard({ website, onAudit, onDelete, onClick, isLoading }: 
         </DropdownMenu>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              {website.lastAuditAt 
-                ? `Audit vor ${formatDistanceToNow(new Date(website.lastAuditAt))}`
-                : "Noch nicht geprüft"
-              }
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <HealthScore score={website.healthScore || 0} size="sm" showLabel={false} />
+            <div className="flex flex-col gap-1 min-w-0">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">
+                  {website.lastAuditAt 
+                    ? `Audit vor ${formatDistanceToNow(new Date(website.lastAuditAt))}`
+                    : "Noch nicht geprüft"
+                  }
+                </span>
+              </div>
+              {!website.isActive && (
+                <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20 w-fit">
+                  <AlertCircle className="h-3 w-3 mr-1" />
+                  Inaktiv
+                </Badge>
+              )}
             </div>
-            {!website.isActive && (
-              <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
-                <AlertCircle className="h-3 w-3 mr-1" />
-                Inaktiv
-              </Badge>
-            )}
           </div>
-          <HealthScore score={website.healthScore || 0} size="sm" showLabel={false} />
         </div>
       </CardContent>
     </Card>
