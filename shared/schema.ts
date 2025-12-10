@@ -53,6 +53,8 @@ export const users = pgTable("users", {
   currentPeriodEnd: timestamp("current_period_end"),
   auditCount: integer("audit_count").default(0),
   auditResetAt: timestamp("audit_reset_at"),
+  lastFreeAuditAt: timestamp("last_free_audit_at"),
+  isOwner: boolean("is_owner").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

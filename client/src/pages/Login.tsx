@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -23,6 +23,26 @@ type LoginForm = z.infer<typeof loginSchema>;
 export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get("error");
+    if (error === "replit_unavailable") {
+      toast({
+        title: "Replit-Anmeldung nicht verfügbar",
+        description: "Bitte melde dich mit Email und Passwort an.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (error === "auth_failed") {
+      toast({
+        title: "Anmeldung fehlgeschlagen",
+        description: "Die Replit-Authentifizierung ist fehlgeschlagen. Bitte versuche es erneut.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [toast]);
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -146,7 +166,7 @@ export default function Login() {
           <Button 
             variant="outline" 
             className="w-full"
-            onClick={() => window.location.href = "/api/login"}
+            onClick={() => window.location.href = "/auth/replit"}
             data-testid="button-login-replit"
           >
             Mit Replit anmelden

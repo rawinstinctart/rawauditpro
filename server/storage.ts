@@ -41,6 +41,7 @@ export interface IStorage {
   deleteWebsite(id: string): Promise<void>;
   
   // Audit operations
+  getAllUserAudits(userId: string): Promise<Audit[]>;
   getAudits(userId: string): Promise<(Audit & { website?: Website })[]>;
   getAudit(id: string): Promise<(Audit & { website?: Website }) | undefined>;
   getRecentAudits(userId: string, limit?: number): Promise<Audit[]>;
@@ -158,7 +159,12 @@ export class DatabaseStorage implements IStorage {
 
   // Website operations
   async getWebsites(userId: string): Promise<Website[]> {
-    return db.select().from(websites).where(eq(websites.userId, userId)).orderBy(desc(websites.createdAt));
+    return db.select().from(websites).where(and(eq(websites.userId, userId), eq(websites.isActive, true))).orderBy(desc(websites.createdAt));
+  }
+
+  async getActiveWebsiteIds(userId: string): Promise<string[]> {
+    const activeWebsites = await db.select({ id: websites.id }).from(websites).where(and(eq(websites.userId, userId), eq(websites.isActive, true)));
+    return activeWebsites.map(w => w.id);
   }
 
   async getWebsite(id: string): Promise<Website | undefined> {
@@ -181,36 +187,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteWebsite(id: string): Promise<void> {
-    // Delete related records in the correct order due to foreign key constraints
-    // 1. Delete agent logs
     await db.delete(agentLogs).where(eq(agentLogs.websiteId, id));
+    await db.delete(drafts).where(eq(drafts.websiteId, id));
     
-    // 2. Get all audits for this website
-    const websiteAudits = await db.select().from(audits).where(eq(audits.websiteId, id));
-    const auditIds = websiteAudits.map(a => a.id);
-    
-    if (auditIds.length > 0) {
-      // 3. Get all issues for these audits
-      const websiteIssues = await db.select().from(issues).where(inArray(issues.auditId, auditIds));
-      const issueIds = websiteIssues.map(i => i.id);
-      
-      // 4. Delete changes linked to these issues
-      if (issueIds.length > 0) {
-        await db.delete(changes).where(inArray(changes.issueId, issueIds));
-      }
-      
-      // 5. Delete issues
-      await db.delete(issues).where(inArray(issues.auditId, auditIds));
-      
-      // 6. Delete audits
-      await db.delete(audits).where(eq(audits.websiteId, id));
-    }
-    
-    // 7. Finally delete the website
-    await db.delete(websites).where(eq(websites.id, id));
+    await db.update(websites).set({ isActive: false, updatedAt: new Date() }).where(eq(websites.id, id));
+  }
+
+  async updateLastFreeAuditAt(userId: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ lastFreeAuditAt: new Date(), updatedAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  async updateUserByStripeCustomer(customerId: string, data: Partial<User>): Promise<User | undefined> {
+    const [updated] = await db
+      .update(users)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(users.stripeCustomerId, customerId))
+      .returning();
+    return updated;
   }
 
   // Audit operations
+  async getAllUserAudits(userId: string): Promise<Audit[]> {
+    const allWebsites = await db.select({ id: websites.id }).from(websites).where(eq(websites.userId, userId));
+    const websiteIds = allWebsites.map(w => w.id);
+    
+    if (websiteIds.length === 0) return [];
+    
+    return db.select().from(audits).where(inArray(audits.websiteId, websiteIds)).orderBy(desc(audits.createdAt));
+  }
+
   async getAudits(userId: string): Promise<(Audit & { website?: Website })[]> {
     const userWebsites = await this.getWebsites(userId);
     const websiteIds = userWebsites.map(w => w.id);

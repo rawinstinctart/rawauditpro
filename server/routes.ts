@@ -17,9 +17,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2023-10-16",
 });
 
-// Limits
 const FREE_AUDIT_LIMIT = 5;
 const PRO_AUDIT_LIMIT = 100;
+const FREE_AUDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const DEV_MODE = process.env.DEV_MODE === "true";
+const OWNER_EMAIL = process.env.OWNER_EMAIL;
 
 export async function registerRoutes(server: Server, app: Express) {
   // ------------------------------------------
@@ -97,6 +99,27 @@ export async function registerRoutes(server: Server, app: Express) {
     }
   });
 
+  app.delete("/api/websites/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      const website = await storage.getWebsite(req.params.id);
+      
+      if (!website) {
+        return res.status(404).json({ message: "Website nicht gefunden" });
+      }
+      
+      if (website.userId !== userId) {
+        return res.status(403).json({ message: "Keine Berechtigung" });
+      }
+      
+      await storage.deleteWebsite(req.params.id);
+      res.json({ success: true });
+    } catch (err) {
+      console.error("DELETE /api/websites/:id error:", err);
+      res.status(500).json({ message: "Löschfehler" });
+    }
+  });
+
   // ------------------------------------------
   // AUDITS
   // ------------------------------------------
@@ -132,37 +155,49 @@ export async function registerRoutes(server: Server, app: Express) {
       const userId = (req.user as any)?.claims?.sub;
       const user = await storage.getUser(userId);
 
-      // ----- Audit-Limit (FREE vs PRO) -----
-      const allAudits = await storage.getAudits(userId);
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const isOwnerUser = user?.isOwner || (OWNER_EMAIL && user?.email === OWNER_EMAIL);
+      const bypassLimits = DEV_MODE || isOwnerUser;
 
-      const auditsThisMonth = allAudits.filter((a: any) => {
-        if (!a.createdAt) return false;
-        const created = new Date(a.createdAt);
-        return created >= startOfMonth;
-      }).length;
+      if (!bypassLimits) {
+        const isPro = user?.subscriptionTier === "pro";
+        
+        if (isPro) {
+          const allAudits = await storage.getAllUserAudits(userId);
+          const now = new Date();
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          const auditsThisMonth = allAudits.filter((a) => {
+            if (!a.createdAt) return false;
+            return new Date(a.createdAt) >= startOfMonth;
+          }).length;
 
-      const limit =
-        user?.subscriptionTier === "pro" ? PRO_AUDIT_LIMIT : FREE_AUDIT_LIMIT;
-
-      if (auditsThisMonth >= limit) {
-        return res.status(403).json({
-          message:
-            user?.subscriptionTier === "pro"
-              ? "PRO audit limit reached for this month."
-              : "Free audit limit reached. Upgrade to PRO to run more audits.",
-        });
+          if (auditsThisMonth >= PRO_AUDIT_LIMIT) {
+            return res.status(403).json({ message: "PRO-Audit-Limit für diesen Monat erreicht." });
+          }
+        } else {
+          const lastFree = user?.lastFreeAuditAt;
+          if (lastFree) {
+            const elapsed = Date.now() - new Date(lastFree).getTime();
+            if (elapsed < FREE_AUDIT_WINDOW_MS) {
+              const hoursLeft = Math.ceil((FREE_AUDIT_WINDOW_MS - elapsed) / (60 * 60 * 1000));
+              return res.status(403).json({ 
+                message: `Dein nächster kostenloser Audit ist in ${hoursLeft} Stunde(n) verfügbar. Upgrade auf PRO für unbegrenzte Audits.` 
+              });
+            }
+          }
+        }
       }
-      // -------------------------------------
 
       const website = await storage.getWebsite(websiteId);
-      if (!website) return res.status(404).json({ message: "Not found" });
+      if (!website || !website.isActive) return res.status(404).json({ message: "Website nicht gefunden" });
 
       const audit = await storage.createAudit({
         websiteId,
         status: "pending",
       });
+
+      if (!bypassLimits && user?.subscriptionTier !== "pro") {
+        await (storage as any).updateLastFreeAuditAt(userId);
+      }
 
       const orchestrator = new AgentOrchestrator(audit.id, websiteId);
       orchestrator.runAudit(website.url).catch(console.error);

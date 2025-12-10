@@ -73,13 +73,19 @@ export async function setupAuth(app: Express) {
   passport.serializeUser((user: Express.User, cb) => cb(null, user));
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
-  // Skip Replit OIDC setup if not on Replit (no REPL_ID)
   if (!process.env.REPL_ID) {
     console.log("Replit OIDC: REPL_ID not set, skipping Replit auth setup");
     
-    // Provide fallback routes that redirect to other auth methods
     app.get("/api/login", (req, res) => {
       res.redirect("/login");
+    });
+    
+    app.get("/auth/replit", (req, res) => {
+      res.redirect("/login?error=replit_unavailable");
+    });
+    
+    app.get("/auth/replit/callback", (req, res) => {
+      res.redirect("/login?error=replit_unavailable");
     });
     
     app.get("/api/callback", (req, res) => {
@@ -152,6 +158,45 @@ export async function setupAuth(app: Express) {
       );
     });
   });
+
+  const externalDomain = process.env.EXTERNAL_DOMAIN;
+  if (externalDomain) {
+    const extStrategyName = `replitauth:${externalDomain}`;
+    const extStrategy = new Strategy(
+      {
+        name: extStrategyName,
+        config,
+        scope: "openid email profile offline_access",
+        callbackURL: `https://${externalDomain}/auth/replit/callback`,
+      },
+      verify,
+    );
+    passport.use(extStrategy);
+
+    app.get("/auth/replit", (req, res, next) => {
+      passport.authenticate(extStrategyName, {
+        prompt: "login consent",
+        scope: ["openid", "email", "profile", "offline_access"],
+      })(req, res, next);
+    });
+
+    app.get("/auth/replit/callback", (req, res, next) => {
+      passport.authenticate(extStrategyName, {
+        successReturnToOrRedirect: "/websites",
+        failureRedirect: "/login?error=auth_failed",
+      })(req, res, next);
+    });
+
+    console.log(`Replit OIDC external callback configured for ${externalDomain}`);
+  } else {
+    app.get("/auth/replit", (req, res, next) => {
+      ensureStrategy(req.hostname);
+      passport.authenticate(`replitauth:${req.hostname}`, {
+        prompt: "login consent",
+        scope: ["openid", "email", "profile", "offline_access"],
+      })(req, res, next);
+    });
+  }
   
   console.log("Replit OIDC configured successfully");
 }
