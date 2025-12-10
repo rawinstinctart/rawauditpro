@@ -1,0 +1,13 @@
+feat(auth): Implement Google OAuth using correct ENV variables
+
+This commit resolves the production crash caused by the Google OAuth provider not receiving a valid `clientId`.
+
+Root Cause:
+The application was using a custom, non-standard authentication flow (likely for Replit OIDC) and did not have a dedicated, correctly configured Passport.js strategy for Google OAuth. The user's environment variables (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`) were correctly set in Render, but the application code was not consuming them. The error "clientId must be a non-empty string" was thrown because the Google provider was not initialized at all.
+
+Fix:
+1.  **Added `server/googleAuth.ts`**: Implements a dedicated Google OAuth 2.0 strategy using `passport-google-oauth20`.
+2.  **Mandatory Safety Checks**: Added explicit `throw new Error` checks in `server/googleAuth.ts` to ensure `process.env.GOOGLE_CLIENT_ID`, `process.env.GOOGLE_CLIENT_SECRET`, and `process.env.GOOGLE_REDIRECT_URI` are present at module load time, satisfying the user's safety requirement.
+3.  **Integration**: Called `setupGoogleAuth(app)` in `server/routes.ts` to register the new authentication routes and strategy.
+
+This implementation uses the user's preferred environment variable names (`GOOGLE_CLIENT_ID`, etc.) directly, fulfilling the primary requirement (Solution A). The application now supports local, Replit OIDC, and Google OAuth flows.

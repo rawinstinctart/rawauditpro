@@ -4,6 +4,7 @@ import express from "express";
 import Stripe from "stripe";
 
 import { isAuthenticated, setupAuth } from "./replitAuth";
+import { setupGoogleAuth } from "./googleAuth";
 import { setupLocalAuth } from "./localAuth";
 import { storage } from "./storage";
 import { AgentOrchestrator } from "./agents/orchestrator";
@@ -43,6 +44,7 @@ export async function registerRoutes(server: Server, app: Express) {
   // ------------------------------------------
   await setupAuth(app);
   setupLocalAuth(app);
+  setupGoogleAuth(app);
 
   // ------------------------------------------
   // USER INFO
