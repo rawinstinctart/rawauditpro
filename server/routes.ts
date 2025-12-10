@@ -202,7 +202,7 @@ export async function registerRoutes(server: Server, app: Express) {
       const orchestrator = new AgentOrchestrator(audit.id, websiteId);
       orchestrator.runAudit(website.url).catch(console.error);
 
-      res.json(audit);
+      res.json({ auditId: audit.id, status: "running" });
     } catch (err) {
       console.error("POST /api/audits error:", err);
       res.status(500).json({ message: "Audit error" });
