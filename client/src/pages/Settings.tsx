@@ -35,9 +35,9 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold flex items-center gap-2">
           <Settings className="h-6 w-6" />
-          Settings
+          Einstellungen
         </h1>
-        <p className="text-muted-foreground">Manage your account and preferences</p>
+        <p className="text-muted-foreground">Verwalte dein Konto und deine Präferenzen</p>
       </div>
 
       <div className="grid lg:grid-cols-4 gap-6">
@@ -46,11 +46,11 @@ export default function SettingsPage() {
             <CardContent className="p-2">
               <div className="space-y-1">
                 {[
-                  { label: "Account", icon: User },
-                  { label: "Appearance", icon: Sun },
-                  { label: "Notifications", icon: Bell },
-                  { label: "AI Agents", icon: Sparkles },
-                  { label: "Security", icon: Shield },
+                  { label: "Konto", icon: User },
+                  { label: "Darstellung", icon: Sun },
+                  { label: "Benachrichtigungen", icon: Bell },
+                  { label: "KI-Agenten", icon: Sparkles },
+                  { label: "Sicherheit", icon: Shield },
                 ].map((item) => (
                   <Button
                     key={item.label}
@@ -72,10 +72,10 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5" />
-                Account
+                Konto
               </CardTitle>
               <CardDescription>
-                Manage your account information
+                Verwalte deine Kontoinformationen
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -83,7 +83,7 @@ export default function SettingsPage() {
                 <Avatar className="h-16 w-16">
                   <AvatarImage 
                     src={user?.profileImageUrl || undefined} 
-                    alt={user?.firstName || "User"}
+                    alt={user?.firstName || "Benutzer"}
                     className="object-cover"
                   />
                   <AvatarFallback className="bg-primary text-primary-foreground text-lg">
@@ -95,13 +95,13 @@ export default function SettingsPage() {
                     {user?.firstName} {user?.lastName}
                   </p>
                   <p className="text-muted-foreground">{user?.email}</p>
-                  <Badge variant="secondary" className="mt-1">Free Plan</Badge>
+                  <Badge variant="secondary" className="mt-1">Kostenlos</Badge>
                 </div>
               </div>
               <Separator />
               <div className="grid gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email">E-Mail</Label>
                   <Input
                     id="email"
                     type="email"
@@ -110,7 +110,7 @@ export default function SettingsPage() {
                     data-testid="input-email"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Email is managed through your authentication provider
+                    Die E-Mail wird über deinen Authentifizierungsanbieter verwaltet
                   </p>
                 </div>
               </div>
@@ -121,18 +121,18 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sun className="h-5 w-5" />
-                Appearance
+                Darstellung
               </CardTitle>
               <CardDescription>
-                Customize how SiteScout looks
+                Passe das Aussehen von SiteScout an
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>Dark Mode</Label>
+                  <Label>Dunkelmodus</Label>
                   <p className="text-sm text-muted-foreground">
-                    Toggle between light and dark themes
+                    Wechsle zwischen hellem und dunklem Design
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -152,18 +152,18 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5" />
-                AI Agent Settings
+                KI-Agenten-Einstellungen
               </CardTitle>
               <CardDescription>
-                Configure how AI agents work on your sites
+                Konfiguriere, wie KI-Agenten deine Websites optimieren
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>Auto-Fix Low Risk Issues</Label>
+                  <Label>Automatische Korrekturen</Label>
                   <p className="text-sm text-muted-foreground">
-                    Automatically apply fixes for low-risk SEO issues
+                    Unkritische SEO-Probleme automatisch beheben
                   </p>
                 </div>
                 <Switch defaultChecked data-testid="switch-auto-fix" />
@@ -171,9 +171,9 @@ export default function SettingsPage() {
               <Separator />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>Show AI Reasoning</Label>
+                  <Label>KI-Begründungen anzeigen</Label>
                   <p className="text-sm text-muted-foreground">
-                    Display detailed reasoning for AI suggestions
+                    Detaillierte Begründungen für KI-Vorschläge anzeigen
                   </p>
                 </div>
                 <Switch defaultChecked data-testid="switch-show-reasoning" />
@@ -181,9 +181,9 @@ export default function SettingsPage() {
               <Separator />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>Real-time Agent Logs</Label>
+                  <Label>Echtzeit-Agenten-Logs</Label>
                   <p className="text-sm text-muted-foreground">
-                    Show live updates from AI agents during audits
+                    Live-Updates von KI-Agenten während Audits anzeigen
                   </p>
                 </div>
                 <Switch defaultChecked data-testid="switch-realtime-logs" />
@@ -195,18 +195,18 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Bell className="h-5 w-5" />
-                Notifications
+                Benachrichtigungen
               </CardTitle>
               <CardDescription>
-                Choose what updates you receive
+                Wähle aus, welche Updates du erhalten möchtest
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>Audit Completion</Label>
+                  <Label>Audit abgeschlossen</Label>
                   <p className="text-sm text-muted-foreground">
-                    Notify when an audit finishes
+                    Benachrichtigung wenn ein Audit fertig ist
                   </p>
                 </div>
                 <Switch defaultChecked data-testid="switch-notify-audit" />
@@ -214,9 +214,9 @@ export default function SettingsPage() {
               <Separator />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>Critical Issues</Label>
+                  <Label>Kritische Probleme</Label>
                   <p className="text-sm text-muted-foreground">
-                    Notify when critical SEO issues are found
+                    Benachrichtigung bei kritischen SEO-Problemen
                   </p>
                 </div>
                 <Switch defaultChecked data-testid="switch-notify-critical" />
@@ -224,9 +224,9 @@ export default function SettingsPage() {
               <Separator />
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
-                  <Label>Weekly Reports</Label>
+                  <Label>Wöchentliche Berichte</Label>
                   <p className="text-sm text-muted-foreground">
-                    Receive weekly SEO performance summaries
+                    Wöchentliche SEO-Performance-Zusammenfassungen erhalten
                   </p>
                 </div>
                 <Switch data-testid="switch-notify-weekly" />
@@ -238,17 +238,17 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-destructive">
                 <Shield className="h-5 w-5" />
-                Danger Zone
+                Gefahrenzone
               </CardTitle>
               <CardDescription>
-                Irreversible account actions
+                Nicht rückgängig zu machende Aktionen
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button variant="destructive" asChild data-testid="button-logout">
                 <a href="/api/logout">
                   <LogOut className="h-4 w-4 mr-2" />
-                  Sign Out
+                  Abmelden
                 </a>
               </Button>
             </CardContent>

@@ -30,10 +30,10 @@ import { formatDistanceToNow, format } from "date-fns";
 import { cn } from "@/lib/utils";
 
 const statusConfig = {
-  pending: { label: "Pending", icon: Clock, className: "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20" },
-  running: { label: "Running", icon: Loader2, className: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20", animated: true },
-  completed: { label: "Completed", icon: CheckCircle, className: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20" },
-  failed: { label: "Failed", icon: XCircle, className: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20" },
+  pending: { label: "Ausstehend", icon: Clock, className: "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20" },
+  running: { label: "Läuft", icon: Loader2, className: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20", animated: true },
+  completed: { label: "Abgeschlossen", icon: CheckCircle, className: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20" },
+  failed: { label: "Fehlgeschlagen", icon: XCircle, className: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20" },
 };
 
 export default function Audits() {
@@ -50,7 +50,7 @@ export default function Audits() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold">Audits</h1>
-          <p className="text-muted-foreground">View and manage SEO audits</p>
+          <p className="text-muted-foreground">SEO-Audits ansehen und verwalten</p>
         </div>
       </div>
 
@@ -61,7 +61,7 @@ export default function Audits() {
               <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Running</p>
+              <p className="text-sm text-muted-foreground">Laufend</p>
               <p className="text-2xl font-bold">{runningAudits.length}</p>
             </div>
           </CardContent>
@@ -72,7 +72,7 @@ export default function Audits() {
               <CheckCircle className="h-6 w-6 text-green-500" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Completed</p>
+              <p className="text-sm text-muted-foreground">Abgeschlossen</p>
               <p className="text-2xl font-bold">{completedAudits.length}</p>
             </div>
           </CardContent>
@@ -83,7 +83,7 @@ export default function Audits() {
               <AlertCircle className="h-6 w-6 text-red-500" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Failed</p>
+              <p className="text-sm text-muted-foreground">Fehlgeschlagen</p>
               <p className="text-2xl font-bold">{failedAudits.length}</p>
             </div>
           </CardContent>
@@ -92,9 +92,9 @@ export default function Audits() {
 
       <Tabs defaultValue="all" className="w-full">
         <TabsList>
-          <TabsTrigger value="all">All Audits</TabsTrigger>
-          <TabsTrigger value="running">Running ({runningAudits.length})</TabsTrigger>
-          <TabsTrigger value="completed">Completed ({completedAudits.length})</TabsTrigger>
+          <TabsTrigger value="all">Alle Audits</TabsTrigger>
+          <TabsTrigger value="running">Laufend ({runningAudits.length})</TabsTrigger>
+          <TabsTrigger value="completed">Abgeschlossen ({completedAudits.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="mt-4">
@@ -131,12 +131,12 @@ function AuditTable({ audits, isLoading }: { audits: (Audit & { website?: Websit
       <Card>
         <CardContent className="py-16 text-center">
           <Search className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-          <h3 className="font-medium mb-1">No audits found</h3>
+          <h3 className="font-medium mb-1">Keine Audits gefunden</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Run an audit on one of your websites to get started
+            Starte einen Audit auf einer deiner Websites, um loszulegen
           </p>
           <Button asChild>
-            <Link href="/websites">Go to Websites</Link>
+            <Link href="/websites">Zu den Websites</Link>
           </Button>
         </CardContent>
       </Card>
@@ -150,9 +150,9 @@ function AuditTable({ audits, isLoading }: { audits: (Audit & { website?: Websit
           <TableRow>
             <TableHead>Website</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Issues</TableHead>
+            <TableHead>Probleme</TableHead>
             <TableHead>Score</TableHead>
-            <TableHead>Date</TableHead>
+            <TableHead>Datum</TableHead>
             <TableHead className="w-[100px]"></TableHead>
           </TableRow>
         </TableHeader>
@@ -169,7 +169,7 @@ function AuditTable({ audits, isLoading }: { audits: (Audit & { website?: Websit
                       <Globe className="h-4 w-4 text-muted-foreground" />
                     </div>
                     <span className="font-medium text-sm">
-                      {audit.website?.name || "Unknown"}
+                      {audit.website?.name || "Unbekannt"}
                     </span>
                   </div>
                 </TableCell>
@@ -186,11 +186,11 @@ function AuditTable({ audits, isLoading }: { audits: (Audit & { website?: Websit
                     )}
                     {audit.highCount > 0 && (
                       <span className="text-sm text-muted-foreground">
-                        +{audit.highCount} high
+                        +{audit.highCount} hoch
                       </span>
                     )}
                     <span className="text-sm text-muted-foreground">
-                      {audit.totalIssues || 0} total
+                      {audit.totalIssues || 0} gesamt
                     </span>
                   </div>
                 </TableCell>
@@ -212,7 +212,7 @@ function AuditTable({ audits, isLoading }: { audits: (Audit & { website?: Websit
                 <TableCell>
                   <Button variant="ghost" size="sm" asChild>
                     <Link href={`/audits/${audit.id}`}>
-                      View <ArrowRight className="h-4 w-4 ml-1" />
+                      Ansehen <ArrowRight className="h-4 w-4 ml-1" />
                     </Link>
                   </Button>
                 </TableCell>

@@ -19,12 +19,12 @@ import { formatDistanceToNow, format } from "date-fns";
 import { useState } from "react";
 
 const agentTypes = [
-  { value: "all", label: "All Agents" },
-  { value: "strategy", label: "Strategy Agent" },
-  { value: "audit", label: "Audit Agent" },
-  { value: "content", label: "Content Agent" },
-  { value: "fix", label: "Fix Agent" },
-  { value: "ranking", label: "Ranking Agent" },
+  { value: "all", label: "Alle Agenten" },
+  { value: "strategy", label: "Strategie-Agent" },
+  { value: "audit", label: "Audit-Agent" },
+  { value: "content", label: "Content-Agent" },
+  { value: "fix", label: "Fix-Agent" },
+  { value: "ranking", label: "Ranking-Agent" },
 ];
 
 export default function AgentLogs() {
@@ -59,9 +59,9 @@ export default function AgentLogs() {
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             <Sparkles className="h-6 w-6 text-primary" />
-            Agent Activity
+            Agenten-Aktivität
           </h1>
-          <p className="text-muted-foreground">Monitor AI agent thinking and actions</p>
+          <p className="text-muted-foreground">KI-Agenten Gedanken und Aktionen überwachen</p>
         </div>
         <Button
           variant="outline"
@@ -70,7 +70,7 @@ export default function AgentLogs() {
           data-testid="button-refresh-logs"
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? "animate-spin" : ""}`} />
-          Refresh
+          Aktualisieren
         </Button>
       </div>
 
@@ -87,7 +87,7 @@ export default function AgentLogs() {
               <div>
                 <p className="text-sm font-medium capitalize">{agent}</p>
                 <p className="text-xs text-muted-foreground">
-                  {agentStats[agent] || 0} logs
+                  {agentStats[agent] || 0} Einträge
                 </p>
               </div>
             </CardContent>
@@ -99,7 +99,7 @@ export default function AgentLogs() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search logs..."
+            placeholder="Logs durchsuchen..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -109,7 +109,7 @@ export default function AgentLogs() {
         <Select value={agentFilter} onValueChange={setAgentFilter}>
           <SelectTrigger className="w-48" data-testid="select-agent-filter">
             <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Filter by agent" />
+            <SelectValue placeholder="Nach Agent filtern" />
           </SelectTrigger>
           <SelectContent>
             {agentTypes.map((type) => (
@@ -125,10 +125,10 @@ export default function AgentLogs() {
         <CardHeader className="pb-3 border-b">
           <CardTitle className="text-base flex items-center gap-2">
             <Brain className="h-4 w-4" />
-            Activity Stream
+            Aktivitäts-Stream
             {filteredLogs && (
               <Badge variant="secondary" className="ml-2">
-                {filteredLogs.length} entries
+                {filteredLogs.length} Einträge
               </Badge>
             )}
           </CardTitle>
@@ -157,11 +157,11 @@ export default function AgentLogs() {
           ) : (
             <div className="py-16 text-center text-muted-foreground">
               <Sparkles className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p className="font-medium mb-1">No agent activity</p>
+              <p className="font-medium mb-1">Keine Agenten-Aktivität</p>
               <p className="text-sm">
                 {searchQuery || agentFilter !== "all"
-                  ? "No logs match your filters"
-                  : "Start an audit to see AI agents in action"}
+                  ? "Keine Logs entsprechen deinen Filtern"
+                  : "Starte einen Audit, um KI-Agenten in Aktion zu sehen"}
               </p>
             </div>
           )}
@@ -193,14 +193,14 @@ function LogEntry({ log }: { log: AgentLog }) {
           <p className="text-sm text-foreground mb-2">{log.message}</p>
           {log.reasoning && (
             <div className="bg-muted/50 rounded-lg p-3 mb-2">
-              <p className="text-xs font-medium text-muted-foreground mb-1">Reasoning</p>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Begründung</p>
               <p className="text-sm text-muted-foreground italic">{log.reasoning}</p>
             </div>
           )}
           {log.action && (
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-xs">
-                Action: {log.action}
+                Aktion: {log.action}
               </Badge>
             </div>
           )}

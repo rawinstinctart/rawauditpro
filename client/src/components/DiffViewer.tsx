@@ -22,21 +22,21 @@ export function DiffViewer({ before, after, title, className }: DiffViewerProps)
           <div className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <Badge variant="outline" className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20">
-                Current
+                Aktuell
               </Badge>
             </div>
             <div className="font-mono text-sm bg-red-500/5 rounded-md p-3 border border-red-500/10 min-h-[80px] whitespace-pre-wrap break-words">
-              {before || <span className="text-muted-foreground italic">Empty</span>}
+              {before || <span className="text-muted-foreground italic">Leer</span>}
             </div>
           </div>
           <div className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <Badge variant="outline" className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
-                Proposed
+                Vorgeschlagen
               </Badge>
             </div>
             <div className="font-mono text-sm bg-green-500/5 rounded-md p-3 border border-green-500/10 min-h-[80px] whitespace-pre-wrap break-words">
-              {after || <span className="text-muted-foreground italic">Empty</span>}
+              {after || <span className="text-muted-foreground italic">Leer</span>}
             </div>
           </div>
         </div>

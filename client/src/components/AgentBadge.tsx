@@ -13,25 +13,25 @@ interface AgentBadgeProps {
 
 const agentConfig = {
   strategy: {
-    label: "Strategy",
+    label: "Strategie",
     icon: Brain,
     className: "bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20",
     activeColor: "bg-purple-500",
   },
   audit: {
-    label: "Audit",
+    label: "Analyse",
     icon: Search,
     className: "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/20",
     activeColor: "bg-blue-500",
   },
   content: {
-    label: "Content",
+    label: "Inhalt",
     icon: Pencil,
     className: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     activeColor: "bg-emerald-500",
   },
   fix: {
-    label: "Fix",
+    label: "Reparatur",
     icon: Wrench,
     className: "bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/20",
     activeColor: "bg-orange-500",

@@ -68,11 +68,11 @@ export function WebsiteCard({ website, onAudit, onDelete, onClick, isLoading }: 
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onAudit?.(website.id); }}>
               <Play className="h-4 w-4 mr-2" />
-              Run Audit
+              Audit starten
             </DropdownMenuItem>
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); window.open(website.url, '_blank'); }}>
               <ExternalLink className="h-4 w-4 mr-2" />
-              Visit Site
+              Website besuchen
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem 
@@ -80,7 +80,7 @@ export function WebsiteCard({ website, onAudit, onDelete, onClick, isLoading }: 
               className="text-destructive focus:text-destructive"
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Remove
+              Entfernen
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -91,14 +91,14 @@ export function WebsiteCard({ website, onAudit, onDelete, onClick, isLoading }: 
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
               {website.lastAuditAt 
-                ? `Audited ${formatDistanceToNow(new Date(website.lastAuditAt), { addSuffix: true })}`
-                : "Never audited"
+                ? `Audit vor ${formatDistanceToNow(new Date(website.lastAuditAt))}`
+                : "Noch nicht geprüft"
               }
             </div>
             {!website.isActive && (
               <Badge variant="outline" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
                 <AlertCircle className="h-3 w-3 mr-1" />
-                Inactive
+                Inaktiv
               </Badge>
             )}
           </div>

@@ -25,7 +25,7 @@ export function AgentLogPanel({
         <CardHeader className="pb-3 border-b">
           <CardTitle className="text-base flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            Agent Activity
+            Agent-Aktivität
           </CardTitle>
         </CardHeader>
       )}
@@ -35,8 +35,8 @@ export function AgentLogPanel({
             {logs.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Sparkles className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No agent activity yet</p>
-                <p className="text-xs mt-1">Start an audit to see AI agents in action</p>
+                <p className="text-sm">Noch keine Agent-Aktivität</p>
+                <p className="text-xs mt-1">Starte einen Audit, um die KI-Agenten in Aktion zu sehen</p>
               </div>
             ) : (
               logs.map((log) => (
@@ -69,7 +69,7 @@ function AgentLogEntry({ log }: { log: AgentLog }) {
         )}
         {log.action && (
           <div className="mt-2">
-            <span className="text-xs font-medium text-primary">Action: </span>
+            <span className="text-xs font-medium text-primary">Aktion: </span>
             <span className="text-xs text-muted-foreground">{log.action}</span>
           </div>
         )}
@@ -94,8 +94,8 @@ export function AgentThinkingIndicator({ activeAgents }: AgentThinkingIndicatorP
       </div>
       <span className="text-xs text-muted-foreground">
         {activeAgents.length === 1
-          ? `${activeAgents[0]} Agent is thinking...`
-          : `${activeAgents.length} agents are thinking...`}
+          ? `${activeAgents[0]}-Agent denkt nach...`
+          : `${activeAgents.length} Agenten denken nach...`}
       </span>
     </div>
   );

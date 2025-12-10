@@ -38,14 +38,14 @@ const navItems = [
   { title: "Dashboard", href: "/", icon: LayoutDashboard },
   { title: "Websites", href: "/websites", icon: Globe },
   { title: "Audits", href: "/audits", icon: Search },
-  { title: "Agent Logs", href: "/logs", icon: Sparkles },
-  { title: "History", href: "/history", icon: History },
+  { title: "Agenten-Logs", href: "/logs", icon: Sparkles },
+  { title: "Verlauf", href: "/history", icon: History },
   { title: "Performance", href: "/performance", icon: TrendingUp },
 ];
 
 const settingsItems = [
-  { title: "Pricing", href: "/pricing", icon: CreditCard },
-  { title: "Settings", href: "/settings", icon: Settings },
+  { title: "Preise", href: "/pricing", icon: CreditCard },
+  { title: "Einstellungen", href: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -96,7 +96,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Settings</SidebarGroupLabel>
+          <SidebarGroupLabel>Einstellungen</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {settingsItems.map((item) => (
@@ -151,14 +151,14 @@ export function AppSidebar() {
             <DropdownMenuItem asChild>
               <Link href="/settings">
                 <Settings className="h-4 w-4 mr-2" />
-                Settings
+                Einstellungen
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <a href="/api/logout" className="text-destructive focus:text-destructive">
                 <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
+                Abmelden
               </a>
             </DropdownMenuItem>
           </DropdownMenuContent>

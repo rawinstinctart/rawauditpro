@@ -38,15 +38,15 @@ export default function Websites() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/websites"] });
       toast({
-        title: "Website removed",
-        description: "The website has been removed from your account.",
+        title: "Website entfernt",
+        description: "Die Website wurde aus deinem Konto entfernt.",
       });
       setDeleteId(null);
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to remove website",
+        title: "Fehler",
+        description: error.message || "Website konnte nicht entfernt werden",
         variant: "destructive",
       });
     },
@@ -60,8 +60,8 @@ export default function Websites() {
       queryClient.invalidateQueries({ queryKey: ["/api/websites"] });
       queryClient.invalidateQueries({ queryKey: ["/api/audits"] });
       toast({
-        title: "Audit started",
-        description: "The SEO audit is now running. Check the agent logs for progress.",
+        title: "Audit gestartet",
+        description: "Der SEO-Audit läuft. Prüfe die Agenten-Logs für den Fortschritt.",
       });
       if (data?.id) {
         setLocation(`/audits/${data.id}`);
@@ -69,8 +69,8 @@ export default function Websites() {
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to start audit",
+        title: "Fehler",
+        description: error.message || "Audit konnte nicht gestartet werden",
         variant: "destructive",
       });
     },
@@ -87,7 +87,7 @@ export default function Websites() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold">Websites</h1>
-          <p className="text-muted-foreground">Manage your monitored websites</p>
+          <p className="text-muted-foreground">Verwalte deine überwachten Websites</p>
         </div>
         <AddWebsiteDialog />
       </div>
@@ -96,7 +96,7 @@ export default function Websites() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search websites..."
+            placeholder="Websites durchsuchen..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -128,16 +128,16 @@ export default function Websites() {
         <Card className="border-dashed">
           <CardContent className="py-16 text-center">
             <Globe className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
-            <h2 className="text-xl font-semibold mb-2">No websites yet</h2>
+            <h2 className="text-xl font-semibold mb-2">Noch keine Websites</h2>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Add your first website to start monitoring and optimizing its SEO
-              with our AI-powered analysis.
+              Füge deine erste Website hinzu, um mit dem Monitoring und der 
+              KI-gestützten SEO-Optimierung zu starten.
             </p>
             <AddWebsiteDialog
               trigger={
                 <Button size="lg" data-testid="button-add-first-website">
                   <Plus className="h-5 w-5 mr-2" />
-                  Add Your First Website
+                  Erste Website hinzufügen
                 </Button>
               }
             />
@@ -147,9 +147,9 @@ export default function Websites() {
         <Card>
           <CardContent className="py-12 text-center">
             <Search className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-            <h3 className="font-medium mb-1">No results found</h3>
+            <h3 className="font-medium mb-1">Keine Ergebnisse</h3>
             <p className="text-sm text-muted-foreground">
-              No websites match your search query
+              Keine Websites entsprechen deiner Suche
             </p>
           </CardContent>
         </Card>
@@ -158,20 +158,20 @@ export default function Websites() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove Website</AlertDialogTitle>
+            <AlertDialogTitle>Website entfernen</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove this website? This will delete all
-              associated audits, issues, and optimization history. This action
-              cannot be undone.
+              Möchtest du diese Website wirklich entfernen? Alle zugehörigen
+              Audits, Issues und die Optimierungshistorie werden gelöscht.
+              Diese Aktion kann nicht rückgängig gemacht werden.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteId && deleteMutation.mutate(deleteId)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Remove
+              Entfernen
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

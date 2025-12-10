@@ -62,7 +62,7 @@ export function HealthScore({ score, size = "md", showLabel = true }: HealthScor
         </div>
       </div>
       {showLabel && (
-        <span className="text-xs text-muted-foreground">Health Score</span>
+        <span className="text-xs text-muted-foreground">Gesundheitswert</span>
       )}
     </div>
   );

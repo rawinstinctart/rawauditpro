@@ -21,8 +21,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 const addWebsiteSchema = z.object({
-  name: z.string().min(1, "Name is required").max(100, "Name is too long"),
-  url: z.string().url("Please enter a valid URL").min(1, "URL is required"),
+  name: z.string().min(1, "Name ist erforderlich").max(100, "Name ist zu lang"),
+  url: z.string().url("Bitte gib eine gültige URL ein").min(1, "URL ist erforderlich"),
 });
 
 type AddWebsiteFormData = z.infer<typeof addWebsiteSchema>;
@@ -50,16 +50,16 @@ export function AddWebsiteDialog({ trigger }: AddWebsiteDialogProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/websites"] });
       toast({
-        title: "Website added",
-        description: "Your website has been added successfully.",
+        title: "Website hinzugefügt",
+        description: "Deine Website wurde erfolgreich hinzugefügt.",
       });
       form.reset();
       setOpen(false);
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to add website",
+        title: "Fehler",
+        description: error.message || "Website konnte nicht hinzugefügt werden",
         variant: "destructive",
       });
     },
@@ -75,7 +75,7 @@ export function AddWebsiteDialog({ trigger }: AddWebsiteDialogProps) {
         {trigger || (
           <Button data-testid="button-add-website">
             <Plus className="h-4 w-4 mr-2" />
-            Add Website
+            Website hinzufügen
           </Button>
         )}
       </DialogTrigger>
@@ -83,10 +83,10 @@ export function AddWebsiteDialog({ trigger }: AddWebsiteDialogProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Globe className="h-5 w-5" />
-            Add Website
+            Website hinzufügen
           </DialogTitle>
           <DialogDescription>
-            Enter the details of the website you want to monitor and optimize.
+            Gib die Details der Website ein, die du überwachen und optimieren möchtest.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -96,10 +96,10 @@ export function AddWebsiteDialog({ trigger }: AddWebsiteDialogProps) {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Website Name</FormLabel>
+                  <FormLabel>Website-Name</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="My Blog"
+                      placeholder="Mein Blog"
                       {...field}
                       data-testid="input-website-name"
                     />
@@ -113,7 +113,7 @@ export function AddWebsiteDialog({ trigger }: AddWebsiteDialogProps) {
               name="url"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Website URL</FormLabel>
+                  <FormLabel>Website-URL</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="https://example.com"
@@ -132,18 +132,18 @@ export function AddWebsiteDialog({ trigger }: AddWebsiteDialogProps) {
                 variant="outline"
                 onClick={() => setOpen(false)}
               >
-                Cancel
+                Abbrechen
               </Button>
               <Button type="submit" disabled={mutation.isPending} data-testid="button-submit-website">
                 {mutation.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Adding...
+                    Hinzufügen...
                   </>
                 ) : (
                   <>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Website
+                    Website hinzufügen
                   </>
                 )}
               </Button>

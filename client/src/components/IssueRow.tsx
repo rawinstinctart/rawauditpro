@@ -21,16 +21,16 @@ interface IssueRowProps {
 }
 
 const statusConfig = {
-  pending: { label: "Pending", className: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20" },
-  approved: { label: "Approved", className: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20" },
-  rejected: { label: "Rejected", className: "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20" },
-  fixed: { label: "Fixed", className: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20" },
-  auto_fixed: { label: "Auto-Fixed", className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" },
+  pending: { label: "Ausstehend", className: "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20" },
+  approved: { label: "Genehmigt", className: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20" },
+  rejected: { label: "Abgelehnt", className: "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20" },
+  fixed: { label: "Behoben", className: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20" },
+  auto_fixed: { label: "Auto-behoben", className: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" },
 };
 
 const riskConfig = {
-  high: { label: "High Risk", className: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20", icon: AlertTriangle },
-  medium: { label: "Medium Risk", className: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20", icon: AlertTriangle },
+  high: { label: "Hohes Risiko", className: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20", icon: AlertTriangle },
+  medium: { label: "Mittleres Risiko", className: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20", icon: AlertTriangle },
   low: { label: "Auto-Fix", className: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20", icon: Zap },
 };
 
@@ -113,14 +113,14 @@ export function IssueRow({ issue, onApprove, onReject, isLoading }: IssueRowProp
             <div className="space-y-4">
               {issue.description && (
                 <div>
-                  <h4 className="text-sm font-medium mb-1">Description</h4>
+                  <h4 className="text-sm font-medium mb-1">Beschreibung</h4>
                   <p className="text-sm text-muted-foreground">{issue.description}</p>
                 </div>
               )}
               
               {(issue.currentValue || issue.suggestedValue) && (
                 <div>
-                  <h4 className="text-sm font-medium mb-2">Suggested Change</h4>
+                  <h4 className="text-sm font-medium mb-2">Vorgeschlagene Änderung</h4>
                   <InlineDiff 
                     before={issue.currentValue || ""} 
                     after={issue.suggestedValue || ""} 
@@ -132,10 +132,10 @@ export function IssueRow({ issue, onApprove, onReject, isLoading }: IssueRowProp
                 <div className="bg-primary/5 rounded-lg p-3 border border-primary/10">
                   <div className="flex items-center gap-2 mb-2">
                     <Sparkles className="h-4 w-4 text-primary" />
-                    <h4 className="text-sm font-medium">AI Reasoning</h4>
+                    <h4 className="text-sm font-medium">KI-Begründung</h4>
                     {issue.confidence && (
                       <Badge variant="outline" className="ml-auto text-xs">
-                        {Math.round((issue.confidence || 0) * 100)}% confidence
+                        {Math.round((issue.confidence || 0) * 100)}% Vertrauen
                       </Badge>
                     )}
                   </div>
@@ -152,7 +152,7 @@ export function IssueRow({ issue, onApprove, onReject, isLoading }: IssueRowProp
                     data-testid={`button-approve-expanded-${issue.id}`}
                   >
                     <Check className="h-4 w-4 mr-1" />
-                    Approve Change
+                    Genehmigen
                   </Button>
                   <Button
                     variant="outline"
@@ -162,7 +162,7 @@ export function IssueRow({ issue, onApprove, onReject, isLoading }: IssueRowProp
                     data-testid={`button-reject-expanded-${issue.id}`}
                   >
                     <X className="h-4 w-4 mr-1" />
-                    Reject
+                    Ablehnen
                   </Button>
                 </div>
               )}

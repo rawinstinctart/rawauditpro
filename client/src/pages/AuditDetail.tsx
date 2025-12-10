@@ -78,15 +78,15 @@ export default function AuditDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/audits", id, "issues"] });
       queryClient.invalidateQueries({ queryKey: ["/api/issues/pending"] });
       toast({
-        title: "Change approved",
-        description: "The fix has been queued for application.",
+        title: "Änderung genehmigt",
+        description: "Die Korrektur wurde zur Anwendung vorgemerkt.",
       });
       setSelectedIssue(null);
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to approve change",
+        title: "Fehler",
+        description: error.message || "Genehmigung fehlgeschlagen",
         variant: "destructive",
       });
     },
@@ -100,15 +100,15 @@ export default function AuditDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/audits", id, "issues"] });
       queryClient.invalidateQueries({ queryKey: ["/api/issues/pending"] });
       toast({
-        title: "Change rejected",
-        description: "The suggested change has been dismissed.",
+        title: "Änderung abgelehnt",
+        description: "Der Vorschlag wurde verworfen.",
       });
       setSelectedIssue(null);
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to reject change",
+        title: "Fehler",
+        description: error.message || "Ablehnung fehlgeschlagen",
         variant: "destructive",
       });
     },
@@ -122,25 +122,25 @@ export default function AuditDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/audits", id] });
       queryClient.invalidateQueries({ queryKey: ["/api/audits", id, "issues"] });
       toast({
-        title: "Auto-fix started",
-        description: "Low-risk issues are being fixed automatically.",
+        title: "Auto-Fix gestartet",
+        description: "Risikoarme Probleme werden automatisch behoben.",
       });
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to start auto-fix",
+        title: "Fehler",
+        description: error.message || "Auto-Fix konnte nicht gestartet werden",
         variant: "destructive",
       });
     },
   });
 
   const statusConfig = {
-    pending: { label: "Pending", icon: Clock, className: "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20", animated: false },
-    queued: { label: "Queued", icon: Clock, className: "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20", animated: false },
-    running: { label: "Running", icon: Loader2, className: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20", animated: true },
-    completed: { label: "Completed", icon: CheckCircle, className: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20", animated: false },
-    failed: { label: "Failed", icon: XCircle, className: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20", animated: false },
+    pending: { label: "Ausstehend", icon: Clock, className: "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20", animated: false },
+    queued: { label: "In Warteschlange", icon: Clock, className: "bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20", animated: false },
+    running: { label: "Läuft", icon: Loader2, className: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20", animated: true },
+    completed: { label: "Abgeschlossen", icon: CheckCircle, className: "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20", animated: false },
+    failed: { label: "Fehlgeschlagen", icon: XCircle, className: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20", animated: false },
   };
 
   if (auditLoading) {
@@ -161,12 +161,12 @@ export default function AuditDetail() {
         <Card>
           <CardContent className="py-16 text-center">
             <AlertCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-            <h3 className="font-medium mb-1">Audit not found</h3>
+            <h3 className="font-medium mb-1">Audit nicht gefunden</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              The requested audit could not be found
+              Der angeforderte Audit konnte nicht gefunden werden
             </p>
             <Button asChild>
-              <Link href="/audits">Back to Audits</Link>
+              <Link href="/audits">Zurück zu den Audits</Link>
             </Button>
           </CardContent>
         </Card>
@@ -216,7 +216,7 @@ export default function AuditDetail() {
               ) : (
                 <Zap className="h-4 w-4 mr-2" />
               )}
-              Auto-Fix {lowRiskIssues.length} Issues
+              Auto-Fix {lowRiskIssues.length} Probleme
             </Button>
           )}
         </div>
@@ -246,14 +246,14 @@ export default function AuditDetail() {
           <CardContent className="p-4 flex items-center gap-4">
             <HealthScore score={audit.score || 0} size="md" showLabel={false} />
             <div>
-              <p className="text-sm text-muted-foreground">Health Score</p>
+              <p className="text-sm text-muted-foreground">Gesundheitswert</p>
               <p className="text-xl font-bold">{audit.score || 0}/100</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground mb-1">Total Issues</p>
+            <p className="text-sm text-muted-foreground mb-1">Probleme gesamt</p>
             <p className="text-2xl font-bold">{audit.totalIssues || 0}</p>
             <div className="flex items-center gap-2 mt-2">
               {(audit.criticalCount ?? 0) > 0 && <SeverityBadge severity="critical" showIcon={false} />}
@@ -263,13 +263,13 @@ export default function AuditDetail() {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground mb-1">Pages Scanned</p>
+            <p className="text-sm text-muted-foreground mb-1">Seiten analysiert</p>
             <p className="text-2xl font-bold">{audit.pagesScanned || 0}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground mb-1">Pending Changes</p>
+            <p className="text-sm text-muted-foreground mb-1">Ausstehende Änderungen</p>
             <p className="text-2xl font-bold">{pendingIssues.length}</p>
           </CardContent>
         </Card>
@@ -279,9 +279,9 @@ export default function AuditDetail() {
         <div className="lg:col-span-2">
           <Tabs defaultValue="all">
             <TabsList>
-              <TabsTrigger value="all">All Issues ({issues?.length || 0})</TabsTrigger>
-              <TabsTrigger value="pending">Pending ({pendingIssues.length})</TabsTrigger>
-              <TabsTrigger value="critical">Critical ({audit.criticalCount || 0})</TabsTrigger>
+              <TabsTrigger value="all">Alle Probleme ({issues?.length || 0})</TabsTrigger>
+              <TabsTrigger value="pending">Ausstehend ({pendingIssues.length})</TabsTrigger>
+              <TabsTrigger value="critical">Kritisch ({audit.criticalCount || 0})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="all" className="mt-4">
@@ -339,7 +339,7 @@ export default function AuditDetail() {
                 <div className="space-y-4 py-4">
                   {selectedIssue.description && (
                     <div>
-                      <h4 className="text-sm font-medium mb-1">Description</h4>
+                      <h4 className="text-sm font-medium mb-1">Beschreibung</h4>
                       <p className="text-sm text-muted-foreground">{selectedIssue.description}</p>
                     </div>
                   )}
@@ -348,7 +348,7 @@ export default function AuditDetail() {
                     <DiffViewer
                       before={selectedIssue.currentValue || ""}
                       after={selectedIssue.suggestedValue || ""}
-                      title="Suggested Change"
+                      title="Vorgeschlagene Änderung"
                     />
                   )}
                   
@@ -356,10 +356,10 @@ export default function AuditDetail() {
                     <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
                       <div className="flex items-center gap-2 mb-2">
                         <Sparkles className="h-4 w-4 text-primary" />
-                        <h4 className="text-sm font-medium">AI Reasoning</h4>
+                        <h4 className="text-sm font-medium">KI-Begründung</h4>
                         {selectedIssue.confidence && (
                           <Badge variant="outline" className="ml-auto text-xs">
-                            {Math.round((selectedIssue.confidence || 0) * 100)}% confidence
+                            {Math.round((selectedIssue.confidence || 0) * 100)}% Vertrauen
                           </Badge>
                         )}
                       </div>
@@ -376,7 +376,7 @@ export default function AuditDetail() {
                     disabled={rejectMutation.isPending}
                   >
                     <X className="h-4 w-4 mr-1" />
-                    Reject
+                    Ablehnen
                   </Button>
                   <Button
                     onClick={() => approveMutation.mutate(selectedIssue.id)}
@@ -387,7 +387,7 @@ export default function AuditDetail() {
                     ) : (
                       <Check className="h-4 w-4 mr-1" />
                     )}
-                    Approve Change
+                    Genehmigen
                   </Button>
                 </DialogFooter>
               )}
@@ -429,9 +429,9 @@ function IssueTable({
       <Card>
         <CardContent className="py-12 text-center">
           <CheckCircle className="h-12 w-12 mx-auto mb-3 text-green-500/50" />
-          <h3 className="font-medium mb-1">No issues found</h3>
+          <h3 className="font-medium mb-1">Keine Probleme gefunden</h3>
           <p className="text-sm text-muted-foreground">
-            Great job! No issues in this category.
+            Sehr gut! Keine Probleme in dieser Kategorie.
           </p>
         </CardContent>
       </Card>
@@ -444,10 +444,10 @@ function IssueTable({
         <TableHeader>
           <TableRow>
             <TableHead className="w-10"></TableHead>
-            <TableHead>Issue</TableHead>
-            <TableHead>Page</TableHead>
-            <TableHead>Severity</TableHead>
-            <TableHead>Risk</TableHead>
+            <TableHead>Problem</TableHead>
+            <TableHead>Seite</TableHead>
+            <TableHead>Schweregrad</TableHead>
+            <TableHead>Risiko</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-20"></TableHead>
           </TableRow>
