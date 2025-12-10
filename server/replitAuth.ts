@@ -10,9 +10,13 @@ import { storage } from "./storage";
 
 const getOidcConfig = memoize(
   async () => {
+    const replId = process.env.REPL_ID;
+    if (!replId) {
+      throw new Error("REPL_ID not available - Replit OIDC cannot be used");
+    }
     return await client.discovery(
       new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
-      process.env.REPL_ID!
+      replId
     );
   },
   { maxAge: 3600 * 1000 }
@@ -66,6 +70,31 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  passport.serializeUser((user: Express.User, cb) => cb(null, user));
+  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+
+  // Skip Replit OIDC setup if not on Replit (no REPL_ID)
+  if (!process.env.REPL_ID) {
+    console.log("Replit OIDC: REPL_ID not set, skipping Replit auth setup");
+    
+    // Provide fallback routes that redirect to other auth methods
+    app.get("/api/login", (req, res) => {
+      res.redirect("/login");
+    });
+    
+    app.get("/api/callback", (req, res) => {
+      res.redirect("/login");
+    });
+    
+    app.get("/api/logout", (req, res) => {
+      req.logout(() => {
+        res.redirect("/");
+      });
+    });
+    
+    return;
+  }
+
   const config = await getOidcConfig();
 
   const verify: VerifyFunction = async (
@@ -97,9 +126,6 @@ export async function setupAuth(app: Express) {
     }
   };
 
-  passport.serializeUser((user: Express.User, cb) => cb(null, user));
-  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
-
   app.get("/api/login", (req, res, next) => {
     ensureStrategy(req.hostname);
     passport.authenticate(`replitauth:${req.hostname}`, {
@@ -126,6 +152,8 @@ export async function setupAuth(app: Express) {
       );
     });
   });
+  
+  console.log("Replit OIDC configured successfully");
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {

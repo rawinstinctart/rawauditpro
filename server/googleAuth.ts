@@ -1,23 +1,31 @@
 import { Express } from "express";
 import passport from "passport";
-import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { Strategy as GoogleStrategy, Profile } from "passport-google-oauth20";
 import { storage } from "./storage";
 
 export function setupGoogleAuth(app: Express) {
-  if (!process.env.GOOGLE_CLIENT_ID) {
-    console.log("Google OAuth: GOOGLE_CLIENT_ID not set, skipping Google auth setup");
-    return;
-  }
-  if (!process.env.GOOGLE_CLIENT_SECRET) {
-    console.log("Google OAuth: GOOGLE_CLIENT_SECRET not set, skipping Google auth setup");
-    return;
-  }
-  if (!process.env.GOOGLE_REDIRECT_URI) {
-    console.log("Google OAuth: GOOGLE_REDIRECT_URI not set, skipping Google auth setup");
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+
+  // Fail-fast: Check if Google OAuth is configured
+  if (!clientId || !clientSecret) {
+    console.log("Google OAuth: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set, skipping Google auth setup");
     return;
   }
 
-  async function upsertUser(profile: any) {
+  // Validate that clientId is a non-empty string (the exact error we're fixing)
+  if (typeof clientId !== "string" || clientId.trim() === "") {
+    throw new Error("GOOGLE_CLIENT_ID must be a non-empty string");
+  }
+  if (typeof clientSecret !== "string" || clientSecret.trim() === "") {
+    throw new Error("GOOGLE_CLIENT_SECRET must be a non-empty string");
+  }
+
+  // Default callback URL if not specified
+  const callbackURL = redirectUri || "/api/auth/callback/google";
+
+  async function upsertUser(profile: Profile) {
     const email = profile.emails?.[0]?.value || "";
     const firstName = profile.name?.givenName || "";
     const lastName = profile.name?.familyName || "";
@@ -34,10 +42,9 @@ export function setupGoogleAuth(app: Express) {
 
   const strategy = new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_REDIRECT_URI,
-      scope: ["profile", "email"],
+      clientID: clientId,
+      clientSecret: clientSecret,
+      callbackURL: callbackURL,
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
@@ -75,18 +82,20 @@ export function setupGoogleAuth(app: Express) {
 
   passport.use("google", strategy);
 
+  // Login route - initiates Google OAuth flow
   app.get(
     "/api/auth/google",
     passport.authenticate("google", { scope: ["profile", "email"] })
   );
 
+  // Callback route - handles OAuth callback from Google
   app.get(
-    "/api/auth/google/callback",
+    "/api/auth/callback/google",
     passport.authenticate("google", {
       successReturnToOrRedirect: "/",
       failureRedirect: "/login",
     })
   );
 
-  console.log("Google OAuth configured successfully");
+  console.log("Google OAuth configured successfully with callback:", callbackURL);
 }
