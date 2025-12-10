@@ -67,3 +67,6 @@ args = "tsx server/index.ts"
 
 [agent]
 integrations = ["javascript_database:1.0.0", "javascript_log_in_with_replit:1.0.0", "javascript_openai:1.0.0", "stripe:2.0.0", "javascript_stripe:1.0.0"]
+
+[objectStorage]
+defaultBucketID = "replit-objstore-3811761e-31f8-4de0-ad72-7a4c1b2d2369"
