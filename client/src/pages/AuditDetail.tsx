@@ -176,7 +176,7 @@ export default function AuditDetail() {
     );
   }
 
-  const status = statusConfig[audit.status as keyof typeof statusConfig] || statusConfig.pending;
+  const status = statusConfig[audit.status as keyof typeof statusConfig] || statusConfig.queued;
   const StatusIcon = status.icon;
   const pendingIssues = issues?.filter(i => i.status === "pending") || [];
   const lowRiskIssues = pendingIssues.filter(i => i.riskLevel === "low");
@@ -271,7 +271,7 @@ export default function AuditDetail() {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground mb-1 truncate">Ausstehende {"Ä"}nderungen</p>
+            <p className="text-sm text-muted-foreground mb-1">Ausstehende Änderungen</p>
             <p className="text-2xl font-bold">{pendingIssues.length}</p>
           </CardContent>
         </Card>

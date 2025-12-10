@@ -475,7 +475,7 @@ export default function AuditReport() {
             <AlertTriangle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium mb-2">Keine Daten verfügbar</h3>
             <p className="text-muted-foreground mb-4">
-              F{"ü"}r diesen Audit sind keine Daten vorhanden.
+              Für diesen Audit sind keine Daten vorhanden.
             </p>
             <Button asChild>
               <Link href="/audits">Zurück zu Audits</Link>

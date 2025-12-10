@@ -158,10 +158,10 @@ export function DraftReview({ auditId, websiteId, isPro }: DraftReviewProps) {
           <div>
             <CardTitle className="text-lg flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
-              Optimierungsvorschlage
+              Optimierungsvorschläge
             </CardTitle>
             <CardDescription>
-              Prufen und genehmigen Sie die AI-generierten Verbesserungen
+              Prüfe und genehmige die KI-generierten Verbesserungen
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -183,24 +183,26 @@ export function DraftReview({ auditId, websiteId, isPro }: DraftReviewProps) {
 
       <CardContent>
         <Tabs defaultValue="pending" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="pending" className="gap-1">
-              <Clock className="h-4 w-4" />
-              Ausstehend ({stats.pending})
-            </TabsTrigger>
-            <TabsTrigger value="approved" className="gap-1">
-              <Check className="h-4 w-4" />
-              Genehmigt ({stats.approved})
-            </TabsTrigger>
-            <TabsTrigger value="applied" className="gap-1">
-              <CheckCircle className="h-4 w-4" />
-              Angewendet ({stats.applied})
-            </TabsTrigger>
-            <TabsTrigger value="rejected" className="gap-1">
-              <X className="h-4 w-4" />
-              Abgelehnt ({stats.rejected})
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-1 px-1 mb-4">
+            <TabsList className="w-max min-w-full sm:w-auto">
+              <TabsTrigger value="pending" className="gap-1 text-xs sm:text-sm">
+                <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                Offen ({stats.pending})
+              </TabsTrigger>
+              <TabsTrigger value="approved" className="gap-1 text-xs sm:text-sm">
+                <Check className="h-3 w-3 sm:h-4 sm:w-4" />
+                OK ({stats.approved})
+              </TabsTrigger>
+              <TabsTrigger value="applied" className="gap-1 text-xs sm:text-sm">
+                <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4" />
+                Fertig ({stats.applied})
+              </TabsTrigger>
+              <TabsTrigger value="rejected" className="gap-1 text-xs sm:text-sm">
+                <X className="h-3 w-3 sm:h-4 sm:w-4" />
+                Nein ({stats.rejected})
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="pending">
             {pendingDrafts.length > 0 && (
@@ -214,7 +216,7 @@ export function DraftReview({ auditId, websiteId, isPro }: DraftReviewProps) {
                     data-testid="select-all-drafts"
                   />
                   <span className="text-sm text-muted-foreground">
-                    {selectedDrafts.length} ausgewahlt
+                    {selectedDrafts.length} ausgewählt
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
