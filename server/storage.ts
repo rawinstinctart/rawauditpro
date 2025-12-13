@@ -25,7 +25,7 @@ import {
   type InsertDraft,
   type DraftStatus,
 } from "@shared/schema";
-import { db } from "./db";
+import { db, isDatabaseConfigured } from "./db";
 import { eq, desc, and, inArray, sql } from "drizzle-orm";
 
 export interface IStorage {
@@ -460,4 +460,188 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+class DisabledStorage implements IStorage {
+  private fail<T>(): Promise<T> {
+    return Promise.reject(new Error("Database is not configured."));
+  }
+
+  getUser(): Promise<User | undefined> {
+    return this.fail();
+  }
+
+  upsertUser(): Promise<User> {
+    return this.fail();
+  }
+
+  getUserByEmail(): Promise<User | undefined> {
+    return this.fail();
+  }
+
+  getUserByStripeCustomerId(): Promise<User | undefined> {
+    return this.fail();
+  }
+
+  createUser(): Promise<User> {
+    return this.fail();
+  }
+
+  updateUserSubscription(): Promise<User | undefined> {
+    return this.fail();
+  }
+
+  incrementAuditCount(): Promise<void> {
+    return this.fail();
+  }
+
+  resetAuditCount(): Promise<void> {
+    return this.fail();
+  }
+
+  getWebsites(): Promise<Website[]> {
+    return this.fail();
+  }
+
+  getWebsite(): Promise<Website | undefined> {
+    return this.fail();
+  }
+
+  createWebsite(): Promise<Website> {
+    return this.fail();
+  }
+
+  updateWebsite(): Promise<Website | undefined> {
+    return this.fail();
+  }
+
+  deleteWebsite(): Promise<void> {
+    return this.fail();
+  }
+
+  getAllUserAudits(): Promise<Audit[]> {
+    return this.fail();
+  }
+
+  getAudits(): Promise<(Audit & { website?: Website | undefined; })[]> {
+    return this.fail();
+  }
+
+  getAudit(): Promise<(Audit & { website?: Website | undefined; }) | undefined> {
+    return this.fail();
+  }
+
+  getRecentAudits(): Promise<Audit[]> {
+    return this.fail();
+  }
+
+  createAudit(): Promise<Audit> {
+    return this.fail();
+  }
+
+  updateAudit(): Promise<Audit | undefined> {
+    return this.fail();
+  }
+
+  getIssues(): Promise<Issue[]> {
+    return this.fail();
+  }
+
+  getIssue(): Promise<Issue | undefined> {
+    return this.fail();
+  }
+
+  getPendingIssues(): Promise<Issue[]> {
+    return this.fail();
+  }
+
+  createIssue(): Promise<Issue> {
+    return this.fail();
+  }
+
+  updateIssue(): Promise<Issue | undefined> {
+    return this.fail();
+  }
+
+  getChanges(): Promise<Change[]> {
+    return this.fail();
+  }
+
+  createChange(): Promise<Change> {
+    return this.fail();
+  }
+
+  updateChange(): Promise<Change | undefined> {
+    return this.fail();
+  }
+
+  getAgentLogs(): Promise<AgentLog[]> {
+    return this.fail();
+  }
+
+  getAuditAgentLogs(): Promise<AgentLog[]> {
+    return this.fail();
+  }
+
+  getRecentAgentLogs(): Promise<AgentLog[]> {
+    return this.fail();
+  }
+
+  createAgentLog(): Promise<AgentLog> {
+    return this.fail();
+  }
+
+  getAgentMemory(): Promise<AgentMemory[]> {
+    return this.fail();
+  }
+
+  upsertAgentMemory(): Promise<AgentMemory> {
+    return this.fail();
+  }
+
+  getDrafts(): Promise<Draft[]> {
+    return this.fail();
+  }
+
+  getDraftsByWebsite(): Promise<Draft[]> {
+    return this.fail();
+  }
+
+  getPendingDrafts(): Promise<Draft[]> {
+    return this.fail();
+  }
+
+  getDraft(): Promise<Draft | undefined> {
+    return this.fail();
+  }
+
+  createDraft(): Promise<Draft> {
+    return this.fail();
+  }
+
+  updateDraft(): Promise<Draft | undefined> {
+    return this.fail();
+  }
+
+  approveDraft(): Promise<Draft | undefined> {
+    return this.fail();
+  }
+
+  rejectDraft(): Promise<Draft | undefined> {
+    return this.fail();
+  }
+
+  applyDraft(): Promise<Draft | undefined> {
+    return this.fail();
+  }
+
+  bulkApproveDrafts(): Promise<number> {
+    return this.fail();
+  }
+
+  bulkApplyDrafts(): Promise<number> {
+    return this.fail();
+  }
+}
+
+export const storage: IStorage = isDatabaseConfigured
+  ? new DatabaseStorage()
+  : new DisabledStorage();

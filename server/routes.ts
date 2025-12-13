@@ -13,9 +13,10 @@ import { stripeService } from "./stripeService";
 import { getStripePublishableKey } from "./stripeClient";
 import { generateFixVariants, analyzeRisk } from "./lib/ai";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2023-10-16",
-});
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const stripe = stripeSecretKey
+  ? new Stripe(stripeSecretKey, { apiVersion: "2023-10-16" })
+  : null;
 
 const FREE_AUDIT_LIMIT = 5;
 const PRO_AUDIT_LIMIT = 100;
@@ -338,8 +339,17 @@ export async function registerRoutes(server: Server, app: Express) {
   // ------------------------------------------
   // BILLING
   // ------------------------------------------
-  app.get("/api/stripe/key", (req, res) => {
-    res.json({ publishableKey: getStripePublishableKey() });
+  app.get("/api/stripe/key", async (_req, res) => {
+    if (!stripe) {
+      return res.status(503).json({ message: "Stripe not configured" });
+    }
+
+    try {
+      res.json({ publishableKey: await getStripePublishableKey() });
+    } catch (err) {
+      console.error("GET /api/stripe/key error:", err);
+      res.status(500).json({ message: "Stripe not available" });
+    }
   });
 
   app.post(
@@ -347,6 +357,10 @@ export async function registerRoutes(server: Server, app: Express) {
     isAuthenticated,
     async (req, res) => {
       try {
+        if (!stripe) {
+          return res.status(503).json({ message: "Stripe not configured" });
+        }
+
         const userId = (req.user as any)?.claims?.sub;
 
         const customer = await stripeService.createCustomer(
@@ -373,6 +387,10 @@ export async function registerRoutes(server: Server, app: Express) {
   // STRIPE WEBHOOK
   // ------------------------------------------
   app.post("/api/stripe/webhook", async (req, res) => {
+    if (!stripe) {
+      return res.status(503).json({ message: "Stripe not configured" });
+    }
+
     const sig = req.headers["stripe-signature"];
     let event;
 

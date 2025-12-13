@@ -7,6 +7,8 @@ import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
+import connectMemoryStore from "memorystore";
+import { isDatabaseConfigured } from "./db";
 
 const getOidcConfig = memoize(
   async () => {
@@ -24,13 +26,21 @@ const getOidcConfig = memoize(
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  const memoryStore = connectMemoryStore(session);
   const pgStore = connectPg(session);
-  const sessionStore = new pgStore({
-    conString: process.env.DATABASE_URL,
-    createTableIfMissing: false,
-    ttl: sessionTtl,
-    tableName: "sessions",
-  });
+
+  const sessionStore = isDatabaseConfigured
+    ? new pgStore({
+        conString: process.env.DATABASE_URL,
+        createTableIfMissing: false,
+        ttl: sessionTtl,
+        tableName: "sessions",
+      })
+    : new memoryStore({ checkPeriod: sessionTtl });
+
+  if (!isDatabaseConfigured) {
+    console.warn("Database not configured. Falling back to in-memory sessions.");
+  }
   return session({
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
